@@ -7,7 +7,7 @@ export default function Home() {
       <h1>Home</h1>
       <form action="" className="flex gap-2">
 
-        <Input type="text" name="search" placeholder="Search anything..."></Input>
+        <Input type="text" name="search" placeholder="Search..."></Input>
         <Button type="submit" text="Search"></Button>
       </form>
     </div>
