@@ -2,7 +2,7 @@ import Input from "../../components/input";
 import Button from "../../components/button";
 
 
-export default function loginPage() {
+export default function LoginPage() {
 
 
     return (
