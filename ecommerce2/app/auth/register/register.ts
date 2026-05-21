@@ -44,5 +44,5 @@ export async function registerFunc(formData: FormData) {
     return redirect("/login?error=Registration failed");
   }
 
-  return redirect("/login?message=Check your email to confirm registration");
+  return redirect("/?message=Check your email to confirm registration");
 }

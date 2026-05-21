@@ -13,6 +13,7 @@ export default function Input({type, name, placeholder}: inputProps){
         className=" border border-green-200"
         type={type} 
         name={name} 
+        minLength={6}
         placeholder={placeholder} />
     );
 }
