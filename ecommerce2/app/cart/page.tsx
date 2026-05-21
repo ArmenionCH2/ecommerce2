@@ -13,7 +13,7 @@ export default function cartPage() {
                 <Input type="text" name="username" placeholder="Find product..."></Input>
                 
 
-                <Button type="submit" text="Find"></Button>
+                <Button type="submit" text="Find it"></Button>
             </form>
 
             <h1>Products:</h1>
