@@ -1,3 +1,4 @@
+import Link from "next/link";
 import Input from "./components/input";
 import Button from "./components/button";
 
@@ -19,6 +20,30 @@ export default function Home() {
         <div className="mt-8 grid gap-4 sm:grid-cols-[1fr_auto]">
           <Input type="text" name="search" placeholder="Search products..." />
           <Button type="submit" text="Search" />
+        </div>
+      </div>
+
+      <div className="rounded-3xl bg-emerald-50 p-8 text-slate-700 shadow-sm">
+        <div className="max-w-3xl space-y-3">
+          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-700">Merchant section</p>
+          <h2 className="text-2xl font-semibold text-slate-950">Want to sell on Green Market?</h2>
+          <p className="text-base leading-7 text-slate-600">
+            Create a merchant account to add products, control quantities, set prices, and manage your online store.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              href="/merchant/register"
+              className="rounded-full bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
+            >
+              Merchant register
+            </Link>
+            <Link
+              href="/merchant/login"
+              className="rounded-full border border-emerald-200 px-5 py-3 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-100"
+            >
+              Merchant login
+            </Link>
+          </div>
         </div>
       </div>
     </section>
