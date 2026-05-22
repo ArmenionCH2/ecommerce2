@@ -3,19 +3,20 @@ import Button from "../../components/button";
 
 
 export default function LoginPage() {
-
-
     return (
-
-        <div>
-            <h1>Login</h1>
-
-            <form action="" className="flex gap-2">
-                <Input type="text" name="username" placeholder="Username..."></Input>
-                <Input type="password" name="password" placeholder="Password..."></Input>
-
-                <Button type="submit" text="Login:"></Button>
-            </form>
-        </div>
+        <section className="space-y-6">
+            <div className="card p-8">
+                <div className="space-y-3">
+                    <p className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-700">Secure access</p>
+                    <h1 className="text-3xl font-semibold text-slate-950">Login to your account</h1>
+                    <p className="text-slate-600">Enter your credentials to continue shopping with a polished modern experience.</p>
+                </div>
+                <form action="" className="mt-8 grid gap-4 sm:max-w-md">
+                    <Input type="text" name="username" placeholder="Username..." />
+                    <Input type="password" name="password" placeholder="Password..." />
+                    <Button type="submit" text="Login" />
+                </form>
+            </div>
+        </section>
     );
 }
