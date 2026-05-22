@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "../../auth/AuthProvider";
-import { addMerchantProduct, getMerchantProducts, MerchantProduct } from "../../lib/merchantStorage";
+import getSupabaseClient from "../../lib/supabaseClient";
+import { addProductForMerchant, getMerchantByAuthUserId, getProductsForMerchant, DbProduct } from "../../lib/merchantDb";
 import Button from "../../components/button";
 import Input from "../../components/input";
 
 export default function MerchantDashboardPage() {
   const { user } = useAuth();
-  const [products, setProducts] = useState<MerchantProduct[]>([]);
+  const [merchantId, setMerchantId] = useState<string | null>(null);
+  const [products, setProducts] = useState<DbProduct[]>([]);
   const [name, setName] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [price, setPrice] = useState(0);
@@ -17,34 +19,52 @@ export default function MerchantDashboardPage() {
   const [msg, setMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    if (user?.role === "merchant" && user.email) {
-      setProducts(getMerchantProducts(user.email));
+    async function loadProducts() {
+      if (!user?.role || user.role !== "merchant") return;
+
+      const supabase = getSupabaseClient();
+      const { data: sessionData } = await supabase.auth.getUser();
+      const authUser = sessionData.user;
+      if (!authUser) return;
+
+      const merchant = await getMerchantByAuthUserId(authUser.id);
+      if (!merchant) return;
+
+      setMerchantId(merchant.id);
+      const loaded = await getProductsForMerchant(merchant.id);
+      setProducts(loaded);
     }
+
+    loadProducts();
   }, [user]);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setMsg(null);
 
-    if (!user?.email || !name || !description || !photo || price <= 0 || quantity <= 0) {
+    if (!merchantId || !name || !description || !photo || price <= 0 || quantity <= 0) {
       setMsg("Please complete all product fields with valid values.");
       return;
     }
 
-    const updated = addMerchantProduct(user.email, {
-      name,
-      quantity,
-      price,
-      photo,
-      description,
-    });
-    setProducts(updated);
-    setName("");
-    setQuantity(1);
-    setPrice(0);
-    setPhoto("");
-    setDescription("");
-    setMsg("Product added successfully.");
+    try {
+      const product = await addProductForMerchant(merchantId, {
+        name,
+        quantity,
+        price,
+        photo,
+        description,
+      });
+      setProducts((prev) => [product, ...prev]);
+      setName("");
+      setQuantity(1);
+      setPrice(0);
+      setPhoto("");
+      setDescription("");
+      setMsg("Product added successfully.");
+    } catch (error: any) {
+      setMsg(error?.message || String(error));
+    }
   };
 
   if (!user || user.role !== "merchant") {

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Input from "./components/input";
 import Button from "./components/button";
+import ProductFeed from "./components/ProductFeed";
 
 export default function Home() {
   return (
@@ -46,6 +47,8 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      <ProductFeed />
     </section>
   );
 }

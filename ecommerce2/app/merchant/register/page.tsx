@@ -4,7 +4,7 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import Input from "../../components/input";
 import Button from "../../components/button";
-import { registerMerchant } from "../../lib/merchantStorage";
+import getSupabaseClient from "../../lib/supabaseClient";
 import { useAuth } from "../../auth/AuthProvider";
 
 export default function MerchantRegisterPage() {
@@ -16,7 +16,7 @@ export default function MerchantRegisterPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const onSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setMsg(null);
     if (!storeName || !email || !password) {
@@ -25,15 +25,47 @@ export default function MerchantRegisterPage() {
     }
 
     setLoading(true);
-    const success = registerMerchant({ email, password, storeName });
-    if (!success) {
-      setMsg("This merchant account already exists. Please login instead.");
-      setLoading(false);
-      return;
-    }
+    try {
+      const supabase = getSupabaseClient();
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
 
-    register({ email, name: storeName, role: "merchant" });
-    router.push("/merchant/dashboard");
+      if (signUpError) {
+        const message = signUpError.message.toLowerCase().includes("already")
+          ? "This merchant account already exists. Please login instead."
+          : `Registration error: ${signUpError.message}`;
+        setMsg(message);
+        setLoading(false);
+        return;
+      }
+
+      if (!authData?.user) {
+        setMsg("Unable to create merchant account at this time.");
+        setLoading(false);
+        return;
+      }
+
+      const user = authData.user;
+      const { error: merchantError } = await supabase.from("merchants").insert({
+        auth_user_id: user.id,
+        email: user.email,
+        store_name: storeName,
+      });
+
+      if (merchantError) {
+        setMsg(`Merchant registration failed: ${merchantError.message}`);
+        setLoading(false);
+        return;
+      }
+
+      register({ email: user.email ?? email, name: storeName, role: "merchant" });
+      router.push("/merchant/dashboard");
+    } catch (error: any) {
+      setMsg(error?.message || String(error));
+      setLoading(false);
+    }
   };
 
   return (

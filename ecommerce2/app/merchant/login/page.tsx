@@ -4,7 +4,7 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import Input from "../../components/input";
 import Button from "../../components/button";
-import { verifyMerchant } from "../../lib/merchantStorage";
+import getSupabaseClient from "../../lib/supabaseClient";
 import { useAuth } from "../../auth/AuthProvider";
 
 export default function MerchantLoginPage() {
@@ -15,7 +15,7 @@ export default function MerchantLoginPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const onSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setMsg(null);
     if (!email || !password) {
@@ -24,15 +24,44 @@ export default function MerchantLoginPage() {
     }
 
     setLoading(true);
-    const merchant = verifyMerchant(email, password);
-    if (!merchant) {
-      setMsg("Invalid merchant email or password.");
-      setLoading(false);
-      return;
-    }
+    try {
+      const supabase = getSupabaseClient();
+      const { data: authData, error: loginError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    login({ email: merchant.email, name: merchant.storeName, role: "merchant" });
-    router.push("/merchant/dashboard");
+      if (loginError) {
+        setMsg(loginError.message);
+        setLoading(false);
+        return;
+      }
+
+      const user = authData.user;
+      if (!user) {
+        setMsg("Unable to sign in as merchant.");
+        setLoading(false);
+        return;
+      }
+
+      const { data: merchant, error: merchantError } = await supabase
+        .from("merchants")
+        .select("id,store_name")
+        .eq("auth_user_id", user.id)
+        .single();
+
+      if (merchantError || !merchant) {
+        setMsg("This account is not registered as a merchant.");
+        setLoading(false);
+        return;
+      }
+
+      login({ email: user.email ?? email, name: merchant.store_name, role: "merchant" });
+      router.push("/merchant/dashboard");
+    } catch (error: any) {
+      setMsg(error?.message || String(error));
+      setLoading(false);
+    }
   };
 
   return (
