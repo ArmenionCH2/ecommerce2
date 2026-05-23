@@ -1,6 +1,8 @@
 ﻿import { createServerSupabase } from "./lib/supabaseServer";
 import { redirect } from "next/navigation";
 
+export const dynamic = "force-dynamic";
+
 type Product = {
   id: string;
   title: string;

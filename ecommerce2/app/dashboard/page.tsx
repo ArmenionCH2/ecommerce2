@@ -1,5 +1,7 @@
 ﻿import { createServerSupabase } from "@/app/lib/supabaseServer";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const supabase = await createServerSupabase();
   const { data: sessionData } = await supabase.auth.getSession();

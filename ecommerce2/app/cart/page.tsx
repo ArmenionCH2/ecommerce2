@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import Button from "../components/button";
 import Input from "../components/input";
 
+export const dynamic = "force-dynamic";
+
 type CartItem = {
   id: string;
   quantity: number;

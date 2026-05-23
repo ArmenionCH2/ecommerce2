@@ -28,7 +28,9 @@ export async function registerFunc(formData: FormData) {
     if (error) {
       console.error("Signup failed:", error.message);
       return redirect(
-        `/auth/register?error=${encodeURIComponent("Registration failed, please try again")}`
+        `/auth/register?error=${encodeURIComponent(
+          error.message || "Registration failed, please try again"
+        )}`
       );
     }
 
@@ -36,9 +38,13 @@ export async function registerFunc(formData: FormData) {
       `/?message=${encodeURIComponent("Check your email to confirm registration")}`
     );
   } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : String(error ?? "Unknown signup error");
     console.error("Unexpected signup error:", error);
     return redirect(
-      `/auth/register?error=${encodeURIComponent("Unable to register right now. Please try again later.")}`
+      `/auth/register?error=${encodeURIComponent(
+        errorMessage || "Unable to register right now. Please try again later."
+      )}`
     );
   }
 }

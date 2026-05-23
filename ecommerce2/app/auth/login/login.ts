@@ -21,15 +21,21 @@ export async function loginFunc(formData: FormData) {
     if (error) {
       console.error("Login failed:", error.message);
       return redirect(
-        `/auth/login?error=${encodeURIComponent("Login failed, check your credentials")}`
+        `/auth/login?error=${encodeURIComponent(
+          error.message || "Login failed, check your credentials"
+        )}`
       );
     }
 
     return redirect(`/?message=${encodeURIComponent("Login successful")}`);
   } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : String(error ?? "Unknown login error");
     console.error("Unexpected login error:", error);
     return redirect(
-      `/auth/login?error=${encodeURIComponent("Unable to login right now. Please try again later.")}`
+      `/auth/login?error=${encodeURIComponent(
+        errorMessage || "Unable to login right now. Please try again later."
+      )}`
     );
   }
 }
