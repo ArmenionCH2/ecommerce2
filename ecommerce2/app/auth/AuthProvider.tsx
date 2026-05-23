@@ -1,54 +1,83 @@
 "use client";
 
+import { createClient } from "@/lib/supabase/client";
+import type { Profile } from "@/lib/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import React, { createContext, useContext, useEffect, useState } from "react";
 
-type User = {
-  name?: string;
-  email?: string;
-};
-
 type AuthContextType = {
-  user: User | null;
-  login: (user: User) => void;
-  logout: () => void;
-  register: (user: User) => void;
+  user: Profile | null;
+  loading: boolean;
+  logout: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
+
+  const loadProfile = async (client: SupabaseClient, userId: string) => {
+    const { data } = await client.from("profiles").select("*").eq("id", userId).single();
+    setUser((data as Profile) ?? null);
+  };
+
+  const refreshProfile = async () => {
+    if (!supabase) return;
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+
+    if (!authUser) {
+      setUser(null);
+      return;
+    }
+
+    await loadProfile(supabase, authUser.id);
+  };
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("gm_user");
-      if (raw) setUser(JSON.parse(raw));
-    } catch (e) {
-      // ignore
-    }
+    const client = createClient();
+    setSupabase(client);
+
+    const init = async () => {
+      const {
+        data: { session },
+      } = await client.auth.getSession();
+
+      if (session?.user) {
+        await loadProfile(client, session.user.id);
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    };
+
+    init();
+
+    const {
+      data: { subscription },
+    } = client.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        await loadProfile(client, session.user.id);
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const login = (u: User) => {
-    setUser(u);
-    try {
-      localStorage.setItem("gm_user", JSON.stringify(u));
-    } catch {}
-  };
-
-  const register = (u: User) => {
-    // mirror login behaviour for client-side registration success
-    login(u);
-  };
-
-  const logout = () => {
+  const logout = async () => {
+    if (supabase) await supabase.auth.signOut();
     setUser(null);
-    try {
-      localStorage.removeItem("gm_user");
-    } catch {}
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, register }}>
+    <AuthContext.Provider value={{ user, loading, logout, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );
