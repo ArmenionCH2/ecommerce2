@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useAuth } from "../auth/AuthProvider";
 
 export default function Nav() {
-  const { user, loading, logout } = useAuth();
+  const { user, loading, authError, logout } = useAuth();
   const isMerchant = user?.role === "merchant";
 
   return (
@@ -23,7 +23,9 @@ export default function Nav() {
 
       <nav className="flex flex-wrap items-center gap-3 text-sm text-slate-700">
         {loading ? (
-          <span className="rounded-full px-4 py-2 text-slate-400">...</span>
+          <span className="rounded-full px-4 py-2 text-slate-400" title={authError ?? undefined}>
+            ...
+          </span>
         ) : isMerchant ? (
           <>
             <Link

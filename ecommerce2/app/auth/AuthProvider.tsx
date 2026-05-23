@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/client";
 import type { Profile, UserRole } from "@/lib/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 export type AppUser = {
   id: string;
@@ -15,6 +15,7 @@ export type AppUser = {
 type AuthContextType = {
   user: AppUser | null;
   loading: boolean;
+  authError: string | null;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 };
@@ -40,94 +41,179 @@ async function syncRoleFromMetadata(
   if (metaRole !== "merchant" && metaRole !== "customer") return profile;
   if (profile.role === metaRole) return profile;
 
-  const { data } = await client
+  const { data, error } = await client
     .from("profiles")
     .update({ role: metaRole as UserRole })
     .eq("id", userId)
     .select()
     .single();
 
+  if (error) return profile;
   return (data as Profile) ?? profile;
 }
 
-async function fetchProfile(client: SupabaseClient, userId: string) {
-  const {
-    data: { user: authUser },
-  } = await client.auth.getUser();
+async function fetchProfile(client: SupabaseClient, userId: string): Promise<AppUser | null> {
+  try {
+    const {
+      data: { user: authUser },
+      error: authError,
+    } = await client.auth.getUser();
 
-  const { data, error } = await client.from("profiles").select("*").eq("id", userId).single();
+    if (authError || !authUser) return null;
 
-  if (error || !data) return null;
+    const { data, error } = await client.from("profiles").select("*").eq("id", userId).single();
 
-  const synced = await syncRoleFromMetadata(
-    client,
-    userId,
-    data as Profile,
-    authUser?.user_metadata
-  );
-  return profileToAppUser(synced);
+    if (error || !data) return null;
+
+    const synced = await syncRoleFromMetadata(
+      client,
+      userId,
+      data as Profile,
+      authUser.user_metadata
+    );
+    return profileToAppUser(synced);
+  } catch (err) {
+    console.error("[AuthProvider] fetchProfile failed:", err);
+    return null;
+  }
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
 
-  const refreshProfile = async () => {
-    if (!supabase) return;
-    const {
-      data: { user: authUser },
-    } = await supabase.auth.getUser();
-    if (!authUser) {
-      setUser(null);
-      return;
-    }
-    const appUser = await fetchProfile(supabase, authUser.id);
-    setUser(appUser);
-  };
+  const finishLoading = useCallback(() => {
+    setLoading(false);
+  }, []);
 
-  useEffect(() => {
-    const client = createClient();
-    setSupabase(client);
-
-    const init = async () => {
+  const refreshProfile = useCallback(async () => {
+    try {
+      const client = createClient();
       const {
         data: { session },
+        error: sessionError,
       } = await client.auth.getSession();
 
-      if (session?.user) {
-        const appUser = await fetchProfile(client, session.user.id);
-        setUser(appUser);
-      } else {
+      if (sessionError) {
+        setAuthError(sessionError.message);
         setUser(null);
+        return;
       }
-      setLoading(false);
+
+      if (!session?.user) {
+        setUser(null);
+        setAuthError(null);
+        return;
+      }
+
+      const appUser = await fetchProfile(client, session.user.id);
+      setUser(appUser);
+      setAuthError(
+        appUser ? null : "Profile not found. Run green_market_schema.sql in Supabase."
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Auth refresh failed.";
+      setAuthError(message);
+      setUser(null);
+      console.error("[AuthProvider] refreshProfile:", err);
+    } finally {
+      finishLoading();
+    }
+  }, [finishLoading]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const safetyTimeout = setTimeout(() => {
+      if (mounted) {
+        console.warn("[AuthProvider] Auth init timed out — showing UI anyway.");
+        finishLoading();
+      }
+    }, 8000);
+
+    let client: SupabaseClient;
+    try {
+      client = createClient();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Supabase is not configured.";
+      setAuthError(message);
+      setUser(null);
+      finishLoading();
+      clearTimeout(safetyTimeout);
+      return;
+    }
+
+    const applySession = async (userId: string | undefined) => {
+      if (!mounted) return;
+      if (!userId) {
+        setUser(null);
+        return;
+      }
+      const appUser = await fetchProfile(client, userId);
+      setUser(appUser);
+      if (!appUser) {
+        setAuthError("Profile not found. Run green_market_schema.sql in Supabase.");
+      } else {
+        setAuthError(null);
+      }
     };
 
-    init();
+    const bootstrap = async () => {
+      try {
+        const {
+          data: { session },
+        } = await client.auth.getSession();
+        await applySession(session?.user?.id);
+      } catch (err) {
+        console.error("[AuthProvider] bootstrap failed:", err);
+        if (mounted) {
+          setAuthError(err instanceof Error ? err.message : "Failed to load session.");
+          setUser(null);
+        }
+      } finally {
+        if (mounted) finishLoading();
+        clearTimeout(safetyTimeout);
+      }
+    };
+
+    bootstrap();
 
     const {
       data: { subscription },
     } = client.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        const appUser = await fetchProfile(client, session.user.id);
-        setUser(appUser);
-      } else {
-        setUser(null);
+      if (!mounted) return;
+      try {
+        await applySession(session?.user?.id);
+      } catch (err) {
+        console.error("[AuthProvider] onAuthStateChange:", err);
+      } finally {
+        if (mounted) finishLoading();
       }
-      setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      mounted = false;
+      clearTimeout(safetyTimeout);
+      subscription.unsubscribe();
+    };
+  }, [finishLoading]);
 
   const logout = async () => {
-    if (supabase) await supabase.auth.signOut();
-    setUser(null);
+    try {
+      const client = createClient();
+      await client.auth.signOut();
+    } catch (err) {
+      console.error("[AuthProvider] logout:", err);
+    } finally {
+      setUser(null);
+      setAuthError(null);
+      finishLoading();
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, logout, refreshProfile }}>
+    <AuthContext.Provider value={{ user, loading, authError, logout, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );
