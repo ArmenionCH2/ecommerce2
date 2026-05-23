@@ -1,5 +1,7 @@
 export const dynamic = "force-dynamic";
 
+import { getProfile, isMerchant } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import Input from "./components/input";
 import Button from "./components/button";
 import ProductFeed from "./components/ProductFeed";
@@ -9,6 +11,11 @@ export default async function Home({
 }: {
   searchParams: Promise<{ search?: string; message?: string }>;
 }) {
+  const profile = await getProfile();
+  if (isMerchant(profile)) {
+    redirect("/merchant");
+  }
+
   const params = await searchParams;
 
   return (
@@ -22,8 +29,8 @@ export default async function Home({
             Shop products posted by merchants across the market.
           </h1>
           <p className="max-w-2xl text-base leading-8 text-slate-600">
-            Every listing is stored in Supabase. Merchants publish from their dashboard; buyers browse
-            the live feed and add items to a persistent cart.
+            Browse the live feed and add items to your cart. Merchants manage listings from their
+            dashboard.
           </p>
         </div>
         {params.message && (

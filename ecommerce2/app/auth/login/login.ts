@@ -1,5 +1,6 @@
 "use server";
 
+import { getProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
@@ -16,6 +17,11 @@ export async function loginFunc(formData: FormData) {
 
   if (error) {
     return redirect("/auth/login?error=Invalid email or password");
+  }
+
+  const profile = await getProfile();
+  if (profile?.role === "merchant") {
+    return redirect("/merchant");
   }
 
   return redirect("/");

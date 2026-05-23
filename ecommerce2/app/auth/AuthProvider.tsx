@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
-import type { Profile } from "@/lib/types";
+import type { Profile, UserRole } from "@/lib/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import React, { createContext, useContext, useEffect, useState } from "react";
 
@@ -14,14 +14,49 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+async function syncRoleFromMetadata(
+  client: SupabaseClient,
+  userId: string,
+  profile: Profile,
+  metadata: Record<string, unknown> | undefined
+): Promise<Profile> {
+  const metaRole = metadata?.role;
+  if (metaRole !== "merchant" && metaRole !== "buyer") return profile;
+  if (profile.role === metaRole) return profile;
+
+  const { data } = await client
+    .from("profiles")
+    .update({ role: metaRole as UserRole })
+    .eq("id", userId)
+    .select()
+    .single();
+
+  return (data as Profile) ?? profile;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
 
   const loadProfile = async (client: SupabaseClient, userId: string) => {
+    const {
+      data: { user: authUser },
+    } = await client.auth.getUser();
+
     const { data } = await client.from("profiles").select("*").eq("id", userId).single();
-    setUser((data as Profile) ?? null);
+    if (!data) {
+      setUser(null);
+      return;
+    }
+
+    const profile = await syncRoleFromMetadata(
+      client,
+      userId,
+      data as Profile,
+      authUser?.user_metadata
+    );
+    setUser(profile);
   };
 
   const refreshProfile = async () => {

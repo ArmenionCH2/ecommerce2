@@ -5,46 +5,62 @@ import { useAuth } from "../auth/AuthProvider";
 
 export default function Nav() {
   const { user, loading, logout } = useAuth();
+  const isMerchant = user?.role === "merchant";
 
   return (
     <div className="page-container flex items-center justify-between gap-3 py-4">
       <div>
-        <Link href="/" className="text-xl font-semibold tracking-tight text-emerald-900">
+        <Link
+          href={isMerchant ? "/merchant" : "/"}
+          className="text-xl font-semibold tracking-tight text-emerald-900"
+        >
           Green Market
         </Link>
-        <p className="text-sm text-slate-600">Fresh shopping</p>
+        <p className="text-sm text-slate-600">
+          {isMerchant ? "Merchant workspace" : "Fresh shopping"}
+        </p>
       </div>
 
       <nav className="flex flex-wrap items-center justify-end gap-2 text-sm text-slate-700">
-        <Link
-          href="/"
-          className="rounded-full px-4 py-2 transition hover:bg-emerald-50 hover:text-emerald-900"
-        >
-          Feed
-        </Link>
-        <Link
-          href="/cart"
-          className="rounded-full px-4 py-2 transition hover:bg-emerald-50 hover:text-emerald-900"
-        >
-          Cart
-        </Link>
-
-        {user?.role === "merchant" && (
-          <Link
-            href="/merchant"
-            className="rounded-full px-4 py-2 transition hover:bg-emerald-50 hover:text-emerald-900"
-          >
-            Merchant
-          </Link>
-        )}
-
         {loading ? (
           <span className="rounded-full px-4 py-2 text-slate-500">...</span>
-        ) : user ? (
+        ) : isMerchant ? (
+          <>
+            <Link
+              href="/merchant"
+              className="rounded-full px-4 py-2 transition hover:bg-emerald-50 hover:text-emerald-900"
+            >
+              My products
+            </Link>
+            <Link
+              href="/merchant/products/new"
+              className="rounded-full bg-emerald-600 px-4 py-2 font-semibold text-white hover:bg-emerald-700"
+            >
+              Add product
+            </Link>
+          </>
+        ) : (
+          <>
+            <Link
+              href="/"
+              className="rounded-full px-4 py-2 transition hover:bg-emerald-50 hover:text-emerald-900"
+            >
+              Feed
+            </Link>
+            <Link
+              href="/cart"
+              className="rounded-full px-4 py-2 transition hover:bg-emerald-50 hover:text-emerald-900"
+            >
+              Cart
+            </Link>
+          </>
+        )}
+
+        {!loading && user ? (
           <>
             <span className="rounded-full px-4 py-2 text-emerald-900">
               {user.email}
-              {user.role === "merchant" ? " · merchant" : ""}
+              {isMerchant ? " · merchant" : ""}
             </span>
             <button
               onClick={() => logout()}
@@ -53,7 +69,7 @@ export default function Nav() {
               Logout
             </button>
           </>
-        ) : (
+        ) : !loading ? (
           <>
             <Link
               href="/auth/login"
@@ -65,7 +81,7 @@ export default function Nav() {
               Register
             </Link>
           </>
-        )}
+        ) : null}
       </nav>
     </div>
   );

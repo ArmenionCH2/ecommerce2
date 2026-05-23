@@ -1,12 +1,18 @@
 export const dynamic = "force-dynamic";
 
-import { getSessionUser } from "@/lib/auth";
+import { getProfile, getSessionUser, isMerchant } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { CartItem } from "@/lib/types";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { removeFromCart } from "./actions";
 
 export default async function CartPage() {
+  const profile = await getProfile();
+  if (isMerchant(profile)) {
+    redirect("/merchant");
+  }
+
   const user = await getSessionUser();
 
   if (!user) {
@@ -28,7 +34,7 @@ export default async function CartPage() {
   const supabase = await createClient();
   const { data: items } = await supabase
     .from("cart_items")
-    .select("*, products(*, profiles(full_name, email))")
+    .select("*, products(*)")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 

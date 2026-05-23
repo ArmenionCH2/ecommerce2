@@ -63,7 +63,9 @@ Optional: disable email confirmation under **Authentication → Providers → Em
 
 | Problem | Fix |
 |--------|-----|
-| **`column "published" does not exist`** | Your `products` table was created before that column existed. Run **`migrations/002_fix_products_published.sql`** in the SQL Editor (or re-run `001_schema.sql` — it now adds missing columns with `ALTER TABLE`). |
+| **`column "published" does not exist`** | Run **`migrations/002_fix_products_published.sql`**. |
+| **Registered as merchant but see Feed/Cart** | Log out and back in (role syncs from sign-up metadata). Or run: `update public.profiles set role = 'merchant' where email = 'you@example.com';` |
+| **Relationship products / profiles error** | Fixed in app code; optional: run **`003_products_profiles_fk.sql`**. |
 | “Could not load products” on feed | Run `001_schema.sql`; confirm `.env.local` keys match the project |
 | Merchant can’t save product | User must be role `merchant` in `profiles`; re-register as merchant or update role in Table Editor |
 | Empty `profiles` after sign-up | Re-run SQL (trigger section); sign up a new user |

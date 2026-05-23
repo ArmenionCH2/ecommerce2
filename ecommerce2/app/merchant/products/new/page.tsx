@@ -1,6 +1,6 @@
 import Input from "@/app/components/input";
 import Button from "@/app/components/button";
-import { requireMerchantProfile } from "@/lib/auth";
+import { getProfile, isMerchant } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { createProduct } from "../../actions";
 
@@ -9,8 +9,9 @@ export default async function NewProductPage({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
-  const profile = await requireMerchantProfile();
-  if (!profile) redirect("/auth/login?error=Merchant account required");
+  const profile = await getProfile();
+  if (!profile) redirect("/auth/login?error=Sign in first");
+  if (!isMerchant(profile)) redirect("/merchant");
 
   const params = await searchParams;
 

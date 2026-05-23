@@ -1,13 +1,13 @@
 "use server";
 
-import { requireMerchantProfile } from "@/lib/auth";
+import { getProfile, isMerchant } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 export async function createProduct(formData: FormData) {
-  const profile = await requireMerchantProfile();
-  if (!profile) redirect("/auth/login?error=Merchant account required");
+  const profile = await getProfile();
+  if (!profile || !isMerchant(profile)) redirect("/auth/login?error=Merchant account required");
 
   const title = (formData.get("title") as string)?.trim();
   const description = (formData.get("description") as string)?.trim();
@@ -40,8 +40,8 @@ export async function createProduct(formData: FormData) {
 }
 
 export async function deleteProduct(formData: FormData) {
-  const profile = await requireMerchantProfile();
-  if (!profile) redirect("/auth/login");
+  const profile = await getProfile();
+  if (!profile || !isMerchant(profile)) redirect("/auth/login");
 
   const productId = formData.get("productId") as string;
   const supabase = await createClient();
@@ -54,8 +54,8 @@ export async function deleteProduct(formData: FormData) {
 }
 
 export async function togglePublish(formData: FormData) {
-  const profile = await requireMerchantProfile();
-  if (!profile) redirect("/auth/login");
+  const profile = await getProfile();
+  if (!profile || !isMerchant(profile)) redirect("/auth/login");
 
   const productId = formData.get("productId") as string;
   const published = formData.get("published") === "true";

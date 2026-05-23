@@ -24,5 +24,10 @@ export async function registerFunc(formData: FormData) {
     return redirect("/auth/register?error=Registration failed");
   }
 
-  return redirect("/auth/login?message=Account created. Sign in to continue.");
+  const loginHint =
+    role === "merchant"
+      ? "Merchant account created. Sign in to open your dashboard and add products."
+      : "Account created. Sign in to continue shopping.";
+
+  return redirect(`/auth/login?message=${encodeURIComponent(loginHint)}`);
 }

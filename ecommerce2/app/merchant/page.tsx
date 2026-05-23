@@ -1,16 +1,20 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { requireMerchantProfile } from "@/lib/auth";
+import { getProfile, isMerchant } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { deleteProduct, togglePublish } from "./actions";
 import type { Product } from "@/lib/types";
 
 export default async function MerchantDashboardPage() {
-  const profile = await requireMerchantProfile();
+  const profile = await getProfile();
   if (!profile) {
     redirect("/auth/login?error=Sign in with a merchant account");
+  }
+
+  if (!isMerchant(profile)) {
+    redirect("/?message=This area is for merchant accounts only");
   }
 
   const supabase = await createClient();
@@ -31,20 +35,27 @@ export default async function MerchantDashboardPage() {
           </p>
           <h1 className="text-3xl font-semibold text-slate-950">Your products</h1>
           <p className="text-slate-600">
-            Published items appear in the public feed for all shoppers.
+            Add and publish listings here. Buyers see published items on the public feed — you do
+            not use the cart or shopper feed.
           </p>
         </div>
         <Link
           href="/merchant/products/new"
           className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700"
         >
-          Add product
+          + Add product
         </Link>
       </div>
 
       {list.length === 0 ? (
-        <div className="card p-8">
-          <p className="text-slate-600">No products yet. Post your first item to the feed.</p>
+        <div className="card space-y-4 p-8">
+          <p className="text-slate-600">No products yet.</p>
+          <Link
+            href="/merchant/products/new"
+            className="inline-flex rounded-full bg-emerald-600 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-700"
+          >
+            Create your first product
+          </Link>
         </div>
       ) : (
         <ul className="grid gap-4">
@@ -52,7 +63,7 @@ export default async function MerchantDashboardPage() {
             <li key={product.id} className="card flex flex-col gap-4 p-6 sm:flex-row sm:items-center">
               <div className="flex-1 space-y-1">
                 <h2 className="text-xl font-semibold text-slate-950">{product.title}</h2>
-                <p className="text-sm text-slate-600 line-clamp-2">{product.description}</p>
+                <p className="line-clamp-2 text-sm text-slate-600">{product.description}</p>
                 <p className="text-lg font-semibold text-emerald-800">
                   ${Number(product.price).toFixed(2)}
                   <span className="ml-3 text-sm font-normal text-slate-500">
