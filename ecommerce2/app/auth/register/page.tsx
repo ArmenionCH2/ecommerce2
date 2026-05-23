@@ -1,24 +1,38 @@
+﻿"use client";
+
 import Input from "../../components/input";
 import Button from "../../components/button";
 
 import { registerFunc } from "./register";
 
-
 export default function RegisterPage() {
-    return (
-        <section className="space-y-6">
-            <div className="card p-8">
-                <div className="space-y-3">
-                    <p className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-700">Join the market</p>
-                    <h1 className="text-3xl font-semibold text-slate-950">Create your account</h1>
-                    <p className="text-slate-600">Register now to save your cart and enjoy faster checkout.</p>
-                </div>
-                <form action={registerFunc} className="mt-8 grid gap-4 sm:max-w-md">
-                    <Input type="email" name="email" placeholder="Email..." />
-                    <Input type="password" name="password" placeholder="Password..." />
-                    <Button type="submit" text="Register" />
-                </form>
-            </div>
-        </section>
-    );
+  return (
+    <section className="space-y-6">
+      <div className="card p-8">
+        <div className="space-y-3">
+          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-700">Join the market</p>
+          <h1 className="text-3xl font-semibold text-slate-950">Create your account</h1>
+          <p className="text-slate-600">Register now to save your cart and enjoy faster checkout.</p>
+        </div>
+        <form action={registerFunc} className="mt-8 grid gap-4 sm:max-w-md">
+          <Input type="email" name="email" placeholder="Email" />
+          <Input type="password" name="password" placeholder="Password" />
+
+          <div className="grid gap-3 rounded-3xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-slate-700">
+            <p className="font-semibold text-slate-950">Account type</p>
+            <label className="flex items-center gap-3">
+              <input type="radio" name="role" value="customer" defaultChecked className="h-4 w-4" />
+              <span>I want to buy (Customer)</span>
+            </label>
+            <label className="flex items-center gap-3">
+              <input type="radio" name="role" value="seller" className="h-4 w-4" />
+              <span>I want to sell (Seller)</span>
+            </label>
+          </div>
+
+          <Button type="submit" text="Register" />
+        </form>
+      </div>
+    </section>
+  );
 }

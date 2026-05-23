@@ -1,17 +1,18 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
+
+type UserRole = "guest" | "customer" | "seller";
 
 type User = {
-  name?: string;
+  id?: string;
   email?: string;
+  role?: UserRole;
 };
 
 type AuthContextType = {
   user: User | null;
-  login: (user: User) => void;
-  logout: () => void;
-  register: (user: User) => void;
+  logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -20,35 +21,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("gm_user");
-      if (raw) setUser(JSON.parse(raw));
-    } catch (e) {
-      // ignore
+    async function loadSession() {
+      try {
+        const response = await fetch("/api/auth/session");
+        if (!response.ok) {
+          setUser(null);
+          return;
+        }
+        const data = await response.json();
+        setUser(data.user);
+      } catch {
+        setUser(null);
+      }
     }
+
+    loadSession();
   }, []);
 
-  const login = (u: User) => {
-    setUser(u);
+  const logout = async () => {
     try {
-      localStorage.setItem("gm_user", JSON.stringify(u));
-    } catch {}
-  };
-
-  const register = (u: User) => {
-    // mirror login behaviour for client-side registration success
-    login(u);
-  };
-
-  const logout = () => {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      // ignore
+    }
     setUser(null);
-    try {
-      localStorage.removeItem("gm_user");
-    } catch {}
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, register }}>
+    <AuthContext.Provider value={{ user, logout }}>
       {children}
     </AuthContext.Provider>
   );
