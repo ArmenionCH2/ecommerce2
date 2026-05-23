@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
+import { Suspense } from "react";
 import Link from "next/link";
 import AuthProvider from "./auth/AuthProvider";
 import Nav from "./components/Nav";
@@ -34,7 +35,9 @@ export default function RootLayout({
       <body className="min-h-full flex min-h-screen flex-col bg-[radial-gradient(circle_at_top_left,_rgba(31,122,68,0.18),_transparent_35%),_radial-gradient(circle_at_bottom_right,_rgba(47,131,69,0.16),_transparent_30%)] text-slate-950">
         <AuthProvider>
           <header className="border-b border-white/20 bg-white/85 backdrop-blur-md shadow-sm">
-            <Nav />
+            <Suspense fallback={<div className="page-container h-16 animate-pulse bg-emerald-50/20" />}>
+              <Nav />
+            </Suspense>
           </header>
 
           <main className="flex-1">
