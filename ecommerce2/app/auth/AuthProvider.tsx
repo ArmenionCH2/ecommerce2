@@ -1,55 +1,133 @@
 "use client";
 
+import { createClient } from "@/lib/supabase/client";
+import type { Profile, UserRole } from "@/lib/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import React, { createContext, useContext, useEffect, useState } from "react";
 
-type User = {
-  name?: string;
-  email?: string;
-  role?: "customer" | "merchant";
+export type AppUser = {
+  id: string;
+  email: string | null;
+  role: UserRole;
+  name: string | null;
 };
 
 type AuthContextType = {
-  user: User | null;
-  login: (user: User) => void;
-  logout: () => void;
-  register: (user: User) => void;
+  user: AppUser | null;
+  loading: boolean;
+  logout: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function profileToAppUser(profile: Profile): AppUser {
+  return {
+    id: profile.id,
+    email: profile.email,
+    role: profile.role,
+    name: profile.store_name,
+  };
+}
+
+async function syncRoleFromMetadata(
+  client: SupabaseClient,
+  userId: string,
+  profile: Profile,
+  metadata: Record<string, unknown> | undefined
+): Promise<Profile> {
+  const metaRole = metadata?.role;
+  if (metaRole !== "merchant" && metaRole !== "customer") return profile;
+  if (profile.role === metaRole) return profile;
+
+  const { data } = await client
+    .from("profiles")
+    .update({ role: metaRole as UserRole })
+    .eq("id", userId)
+    .select()
+    .single();
+
+  return (data as Profile) ?? profile;
+}
+
+async function fetchProfile(client: SupabaseClient, userId: string) {
+  const {
+    data: { user: authUser },
+  } = await client.auth.getUser();
+
+  const { data, error } = await client.from("profiles").select("*").eq("id", userId).single();
+
+  if (error || !data) return null;
+
+  const synced = await syncRoleFromMetadata(
+    client,
+    userId,
+    data as Profile,
+    authUser?.user_metadata
+  );
+  return profileToAppUser(synced);
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
+
+  const refreshProfile = async () => {
+    if (!supabase) return;
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+    if (!authUser) {
+      setUser(null);
+      return;
+    }
+    const appUser = await fetchProfile(supabase, authUser.id);
+    setUser(appUser);
+  };
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("gm_user");
-      if (raw) setUser(JSON.parse(raw));
-    } catch (e) {
-      // ignore
-    }
+    const client = createClient();
+    setSupabase(client);
+
+    const init = async () => {
+      const {
+        data: { session },
+      } = await client.auth.getSession();
+
+      if (session?.user) {
+        const appUser = await fetchProfile(client, session.user.id);
+        setUser(appUser);
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    };
+
+    init();
+
+    const {
+      data: { subscription },
+    } = client.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        const appUser = await fetchProfile(client, session.user.id);
+        setUser(appUser);
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const login = (u: User) => {
-    setUser(u);
-    try {
-      localStorage.setItem("gm_user", JSON.stringify(u));
-    } catch {}
-  };
-
-  const register = (u: User) => {
-    // mirror login behaviour for client-side registration success
-    login(u);
-  };
-
-  const logout = () => {
+  const logout = async () => {
+    if (supabase) await supabase.auth.signOut();
     setUser(null);
-    try {
-      localStorage.removeItem("gm_user");
-    } catch {}
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, register }}>
+    <AuthContext.Provider value={{ user, loading, logout, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );
