@@ -5,8 +5,9 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 export async function registerFunc(formData: FormData) {
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
+  const email = (formData.get("email") as string) || "";
+  const password = (formData.get("password") as string) || "";
+  const role = (formData.get("role") as string) || "customer";
 
   // 1. Get access to the Next.js cookie jar
   const cookieStore = await cookies();
@@ -37,11 +38,14 @@ export async function registerFunc(formData: FormData) {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      data: { role },
+    },
   });
 
   if (error) {
     console.error("Signup failed:", error.message);
-    return redirect("/login?error=Registration failed");
+    return redirect("/auth/login?error=Registration failed");
   }
 
   return redirect("/?message=Check your email to confirm registration");

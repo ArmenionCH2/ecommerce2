@@ -13,8 +13,9 @@ export default function LoginPage() {
     const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const fd = new FormData(e.currentTarget as HTMLFormElement);
-        const username = (fd.get("username") as string) || "";
-        login({ email: username });
+        const email = (fd.get("email") as string) || "";
+        const role = (fd.get("role") as string) as "customer" | "seller";
+        login({ email, role });
         router.push("/");
     };
 
@@ -27,8 +28,22 @@ export default function LoginPage() {
                     <p className="text-slate-600">Enter your credentials to continue shopping with a polished modern experience.</p>
                 </div>
                 <form onSubmit={onSubmit} className="mt-8 grid gap-4 sm:max-w-md">
-                    <Input type="text" name="username" placeholder="Username or email..." />
+                    <Input type="email" name="email" placeholder="Email..." />
                     <Input type="password" name="password" placeholder="Password..." />
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700" htmlFor="role">
+                            Continue as
+                        </label>
+                        <select
+                            id="role"
+                            name="role"
+                            defaultValue="customer"
+                            className="w-full rounded-3xl border border-emerald-200 bg-white/90 px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition duration-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+                        >
+                            <option value="customer">Customer</option>
+                            <option value="seller">Seller</option>
+                        </select>
+                    </div>
                     <Button type="submit" text="Login" />
                 </form>
             </div>

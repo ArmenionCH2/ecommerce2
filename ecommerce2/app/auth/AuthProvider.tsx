@@ -5,6 +5,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 type User = {
   name?: string;
   email?: string;
+  role?: "customer" | "seller";
 };
 
 type AuthContextType = {
@@ -24,28 +25,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const raw = localStorage.getItem("gm_user");
       if (raw) setUser(JSON.parse(raw));
     } catch (e) {
-      // ignore
+      // ignore invalid state
     }
   }, []);
 
-  const login = (u: User) => {
+  const persistUser = (u: User | null) => {
     setUser(u);
     try {
-      localStorage.setItem("gm_user", JSON.stringify(u));
-    } catch {}
+      if (u) {
+        localStorage.setItem("gm_user", JSON.stringify(u));
+      } else {
+        localStorage.removeItem("gm_user");
+      }
+    } catch {
+      // ignore storage failures
+    }
   };
 
-  const register = (u: User) => {
-    // mirror login behaviour for client-side registration success
-    login(u);
-  };
-
-  const logout = () => {
-    setUser(null);
-    try {
-      localStorage.removeItem("gm_user");
-    } catch {}
-  };
+  const login = (u: User) => persistUser(u);
+  const register = (u: User) => persistUser(u);
+  const logout = () => persistUser(null);
 
   return (
     <AuthContext.Provider value={{ user, login, logout, register }}>
