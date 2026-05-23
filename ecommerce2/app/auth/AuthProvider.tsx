@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import type { Profile, UserRole } from "@/lib/types";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 export type AppUser = {
@@ -52,30 +52,22 @@ async function syncRoleFromMetadata(
   return (data as Profile) ?? profile;
 }
 
-async function fetchProfile(client: SupabaseClient, userId: string): Promise<AppUser | null> {
-  try {
-    const {
-      data: { user: authUser },
-      error: authError,
-    } = await client.auth.getUser();
+async function loadProfileFromSession(
+  client: SupabaseClient,
+  session: Session
+): Promise<AppUser | null> {
+  const userId = session.user.id;
+  const { data, error } = await client.from("profiles").select("*").eq("id", userId).single();
 
-    if (authError || !authUser) return null;
+  if (error || !data) return null;
 
-    const { data, error } = await client.from("profiles").select("*").eq("id", userId).single();
-
-    if (error || !data) return null;
-
-    const synced = await syncRoleFromMetadata(
-      client,
-      userId,
-      data as Profile,
-      authUser.user_metadata
-    );
-    return profileToAppUser(synced);
-  } catch (err) {
-    console.error("[AuthProvider] fetchProfile failed:", err);
-    return null;
-  }
+  const synced = await syncRoleFromMetadata(
+    client,
+    userId,
+    data as Profile,
+    session.user.user_metadata
+  );
+  return profileToAppUser(synced);
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -83,121 +75,86 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  const finishLoading = useCallback(() => {
-    setLoading(false);
-  }, []);
+  const applySession = useCallback(async (session: Session | null) => {
+    if (!session?.user) {
+      setUser(null);
+      setAuthError(null);
+      return;
+    }
 
-  const refreshProfile = useCallback(async () => {
     try {
       const client = createClient();
-      const {
-        data: { session },
-        error: sessionError,
-      } = await client.auth.getSession();
-
-      if (sessionError) {
-        setAuthError(sessionError.message);
-        setUser(null);
-        return;
-      }
-
-      if (!session?.user) {
-        setUser(null);
-        setAuthError(null);
-        return;
-      }
-
-      const appUser = await fetchProfile(client, session.user.id);
+      const appUser = await loadProfileFromSession(client, session);
       setUser(appUser);
       setAuthError(
         appUser ? null : "Profile not found. Run green_market_schema.sql in Supabase."
       );
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Auth refresh failed.";
-      setAuthError(message);
+      console.error("[AuthProvider] applySession:", err);
       setUser(null);
-      console.error("[AuthProvider] refreshProfile:", err);
-    } finally {
-      finishLoading();
+      setAuthError(err instanceof Error ? err.message : "Failed to load profile.");
     }
-  }, [finishLoading]);
+  }, []);
 
-  useEffect(() => {
-    let mounted = true;
-
-    const safetyTimeout = setTimeout(() => {
-      if (mounted) {
-        console.warn("[AuthProvider] Auth init timed out — showing UI anyway.");
-        finishLoading();
-      }
-    }, 8000);
-
-    let client: SupabaseClient;
+  const refreshProfile = useCallback(async () => {
+    setLoading(true);
     try {
-      client = createClient();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Supabase is not configured.";
-      setAuthError(message);
-      setUser(null);
-      finishLoading();
-      clearTimeout(safetyTimeout);
-      return;
-    }
+      const client = createClient();
+      const {
+        data: { session },
+        error,
+      } = await client.auth.getSession();
 
-    const applySession = async (userId: string | undefined) => {
-      if (!mounted) return;
-      if (!userId) {
+      if (error) {
+        setAuthError(error.message);
         setUser(null);
         return;
       }
-      const appUser = await fetchProfile(client, userId);
-      setUser(appUser);
-      if (!appUser) {
-        setAuthError("Profile not found. Run green_market_schema.sql in Supabase.");
-      } else {
-        setAuthError(null);
-      }
-    };
 
-    const bootstrap = async () => {
-      try {
-        const {
-          data: { session },
-        } = await client.auth.getSession();
-        await applySession(session?.user?.id);
-      } catch (err) {
-        console.error("[AuthProvider] bootstrap failed:", err);
-        if (mounted) {
-          setAuthError(err instanceof Error ? err.message : "Failed to load session.");
-          setUser(null);
-        }
-      } finally {
-        if (mounted) finishLoading();
-        clearTimeout(safetyTimeout);
-      }
-    };
+      await applySession(session);
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : "Auth refresh failed.");
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [applySession]);
 
-    bootstrap();
+  useEffect(() => {
+    let mounted = true;
+    let client: SupabaseClient;
 
+    try {
+      client = createClient();
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : "Supabase is not configured.");
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+
+    // Do NOT call getSession() here — it deadlocks with onAuthStateChange when using SSR client.
+    // INITIAL_SESSION delivers the session once the listener is registered.
     const {
       data: { subscription },
-    } = client.auth.onAuthStateChange(async (_event, session) => {
+    } = client.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
-      try {
-        await applySession(session?.user?.id);
-      } catch (err) {
-        console.error("[AuthProvider] onAuthStateChange:", err);
-      } finally {
-        if (mounted) finishLoading();
+
+      if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        await applySession(session);
+      } else if (event === "SIGNED_OUT") {
+        setUser(null);
+        setAuthError(null);
       }
+
+      if (mounted) setLoading(false);
     });
 
     return () => {
       mounted = false;
-      clearTimeout(safetyTimeout);
       subscription.unsubscribe();
     };
-  }, [finishLoading]);
+  }, [applySession]);
 
   const logout = async () => {
     try {
@@ -208,7 +165,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setUser(null);
       setAuthError(null);
-      finishLoading();
+      setLoading(false);
     }
   };
 
