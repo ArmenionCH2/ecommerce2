@@ -1,63 +1,73 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 type UserRole = "guest" | "customer" | "seller";
 
-type User = {
-  id?: string;
-  email?: string;
-  role?: UserRole;
+type AuthUser = {
+  id: string;
+  email: string | null;
+  role: UserRole;
 };
 
-type AuthContextType = {
-  user: User | null;
+type AuthContextValue = {
+  user: AuthUser | null;
+  loading: boolean;
   logout: () => Promise<void>;
 };
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
+  return context;
+}
+
+export default function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function loadSession() {
+    async function fetchSession() {
       try {
         const response = await fetch("/api/auth/session");
         if (!response.ok) {
           setUser(null);
           return;
         }
-        const data = await response.json();
-        setUser(data.user);
-      } catch {
+
+        const body = await response.json();
+        setUser(body?.user ?? null);
+      } catch (error) {
+        console.error("Failed to load auth session", error);
         setUser(null);
+      } finally {
+        setLoading(false);
       }
     }
 
-    loadSession();
+    fetchSession();
   }, []);
 
-  const logout = async () => {
-    try {
-      await fetch("/api/auth/logout", { method: "POST" });
-    } catch {
-      // ignore
-    }
-    setUser(null);
-  };
+  const logout = useMemo(
+    () => async () => {
+      try {
+        await fetch("/api/auth/logout", { method: "POST" });
+        setUser(null);
+      } catch (error) {
+        console.error("Logout failed", error);
+      }
+    },
+    []
+  );
 
   return (
-    <AuthContext.Provider value={{ user, logout }}>
+    <AuthContext.Provider value={{ user, loading, logout }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
-}
-
-export default AuthProvider;
