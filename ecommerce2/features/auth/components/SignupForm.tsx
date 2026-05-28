@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -8,12 +8,12 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { signUp } from '../authClient';
+import Link from 'next/link';
 
 const signupSchema = z.object({
   fullName: z.string().min(2, { message: 'Full name must be at least 2 characters' }),
   email: z.string().email({ message: 'Invalid email address' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters' }),
-  role: z.enum(['customer', 'seller'] as const),
 });
 
 type SignupSchema = z.infer<typeof signupSchema>;
@@ -32,28 +32,27 @@ export function SignupForm({ onSuccess, onToggleForm }: SignupFormProps) {
   const {
     register,
     handleSubmit,
-    setValue,
-    watch,
     formState: { errors },
   } = useForm<SignupSchema>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { role: 'customer' },
   });
 
-  const selectedRole = watch('role');
-
-  const onSubmit = async (data: SignupSchema) => {
+  const onSubmit = useCallback(async (data: SignupSchema) => {
     setIsLoading(true);
     setError(null);
     setSuccessMsg(null);
     try {
-      const res = await signUp(data.email, data.password, data.fullName, data.role);
+      const res = await signUp(data.email, data.password, data.fullName, 'customer');
       if (!res.success) {
         setError(res.error || 'Failed to create account');
         return;
       }
       if (res.needsEmailConfirmation) {
         setSuccessMsg('Account created! Check your email to confirm, then sign in.');
+        // Close modal after showing success message
+        setTimeout(() => {
+          onSuccess?.();
+        }, 2000);
         return;
       }
       onSuccess?.();
@@ -65,14 +64,14 @@ export function SignupForm({ onSuccess, onToggleForm }: SignupFormProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [onSuccess, router]);
 
   return (
-    <div className="w-full max-w-md p-8 bg-white rounded-2xl shadow-lg border border-gray-100/80">
-      <div className="text-center mb-7">
-        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Create account</h2>
+    <div className="w-full max-w-md p-6 sm:p-8 bg-white rounded-2xl shadow-lg border border-gray-100/80">
+      <div className="text-center mb-6 sm:mb-7">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">Create account</h2>
         <p className="text-sm text-gray-500 mt-1.5">
-          Buyers shop immediately. Sellers can list products and apply for verification.
+          Sign up to start shopping on our marketplace.
         </p>
       </div>
 
@@ -85,7 +84,7 @@ export function SignupForm({ onSuccess, onToggleForm }: SignupFormProps) {
         )}
 
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-gray-600">Customer | Seller/Shop name</label>
+          <label className="text-xs font-medium text-gray-600">Full name</label>
           <Input type="text" placeholder="Your name" error={!!errors.fullName} disabled={isLoading} {...register('fullName')} />
           {errors.fullName && <p className="text-xs text-rose-500">{errors.fullName.message}</p>}
         </div>
@@ -102,43 +101,26 @@ export function SignupForm({ onSuccess, onToggleForm }: SignupFormProps) {
           {errors.password && <p className="text-xs text-rose-500">{errors.password.message}</p>}
         </div>
 
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-gray-600">Account type</label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              disabled={isLoading}
-              onClick={() => setValue('role', 'customer', { shouldValidate: true })}
-              className={`py-2.5 px-3 rounded-lg border text-sm font-medium transition-colors ${
-                selectedRole === 'customer'
-                  ? 'border-emerald-500 bg-emerald-50 text-emerald-800'
-                  : 'border-gray-200 text-gray-600 hover:border-gray-300'
-              }`}
-            >
-              Shop (buyer)
-            </button>
-            <button
-              type="button"
-              disabled={isLoading}
-              onClick={() => setValue('role', 'seller', { shouldValidate: true })}
-              className={`py-2.5 px-3 rounded-lg border text-sm font-medium transition-colors ${
-                selectedRole === 'seller'
-                  ? 'border-emerald-500 bg-emerald-50 text-emerald-800'
-                  : 'border-gray-200 text-gray-600 hover:border-gray-300'
-              }`}
-            >
-              Sell products
-            </button>
-          </div>
-        </div>
-
         <Button type="submit" className="w-full h-11" disabled={isLoading}>
           {isLoading ? 'Creating account…' : 'Create account'}
         </Button>
       </form>
 
+      <div className="mt-4 pt-4 border-t border-gray-100">
+        <button
+          type="button"
+          onClick={() => {
+            onSuccess?.();
+            router.push('/register/seller');
+          }}
+          className="block w-full text-center text-sm text-emerald-600 font-semibold hover:underline"
+        >
+          Want to sell? Register as a seller
+        </button>
+      </div>
+
       {onToggleForm && (
-        <p className="mt-5 text-center text-sm text-gray-500">
+        <p className="mt-4 sm:mt-5 text-center text-sm text-gray-500">
           Already registered?{' '}
           <button type="button" onClick={onToggleForm} className="text-emerald-600 font-semibold hover:underline">
             Sign in

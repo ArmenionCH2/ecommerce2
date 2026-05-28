@@ -7,7 +7,7 @@ import { SystemOverviewCard } from '@/features/admin-control/components/SystemOv
 import { ModerationRow } from '@/features/admin-control/components/ModerationRow';
 import { deactivateProduct } from '@/features/admin-control/actions';
 import { Button } from '@/components/ui/button';
-import { Users, FileText, ArrowLeft, Ban, Wallet, Shield, Trophy, TrendingUp } from 'lucide-react';
+import { Users, FileText, ArrowLeft, Ban, Wallet, Shield, Trophy, TrendingUp, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import type { Product } from '@/lib/types';
 import { formatPrice } from '@/lib/utils';
@@ -152,6 +152,12 @@ export default function AdminDashboardPage() {
           <p className="text-sm text-gray-400 mt-1">Monitor platform-wide analytics and audit active crop listings.</p>
         </div>
         <div className="flex gap-2.5">
+          <Link href="/admin/registrations" passHref legacyBehavior>
+            <Button variant="outline" className="gap-1.5 border-gray-200 hover:bg-gray-50">
+              <UserPlus className="w-4.5 h-4.5 text-gray-500" />
+              Registrations
+            </Button>
+          </Link>
           <Link href="/admin/verifications" passHref legacyBehavior>
             <Button variant="outline" className="gap-1.5 border-gray-200 hover:bg-gray-50">
               <Users className="w-4.5 h-4.5 text-gray-500" />

@@ -15,6 +15,29 @@ export interface Profile {
   banned_at       : string | null;
   metadata        : Record<string, unknown>;
   created_at      : string;
+  registration_status: 'pending' | 'approved' | 'rejected';
+  // Seller registration fields
+  first_name         : string | null;
+  last_name          : string | null;
+  address            : string | null;
+  photo_url          : string | null;
+  store_name         : string | null;
+  store_description  : string | null;
+  store_logo_url     : string | null;
+  store_cover_photo_url: string | null;
+  social_media_links : Record<string, unknown> | null;
+  government_id_url  : string | null;
+  tax_identification_number: string | null;
+  business_registration_number: string | null;
+  bank_name          : string | null;
+  bank_account_holder_name: string | null;
+  bank_account_number: string | null;
+  billing_address    : string | null;
+  ewallet_provider   : string | null;
+  ewallet_number     : string | null;
+  warehouse_address  : string | null;
+  operating_hours    : string | null;
+  preferred_courier  : string | null;
 }
 
 export interface Product {
