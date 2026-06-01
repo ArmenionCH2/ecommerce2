@@ -10,5 +10,11 @@ if (!supabaseUrl || !supabaseKey) {
 /**
  * Singleton Supabase browser client.
  * Import this — never call createClient() in component files.
+ * This client will automatically use the session if available.
  */
-export const supabaseClient = createClient(supabaseUrl, supabaseKey);
+export const supabaseClient = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+  },
+});
