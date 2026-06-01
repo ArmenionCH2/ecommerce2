@@ -13,7 +13,6 @@ const signupSchema = z.object({
   fullName: z.string().min(2, { message: 'Full name must be at least 2 characters' }),
   email: z.string().email({ message: 'Invalid email address' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters' }),
-  role: z.enum(['customer', 'seller'] as const),
 });
 
 type SignupSchema = z.infer<typeof signupSchema>;
@@ -32,22 +31,17 @@ export function SignupForm({ onSuccess, onToggleForm }: SignupFormProps) {
   const {
     register,
     handleSubmit,
-    setValue,
-    watch,
     formState: { errors },
   } = useForm<SignupSchema>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { role: 'customer' },
   });
-
-  const selectedRole = watch('role');
 
   const onSubmit = async (data: SignupSchema) => {
     setIsLoading(true);
     setError(null);
     setSuccessMsg(null);
     try {
-      const res = await signUp(data.email, data.password, data.fullName, data.role);
+      const res = await signUp(data.email, data.password, data.fullName, 'customer');
       if (!res.success) {
         setError(res.error || 'Failed to create account');
         return;
@@ -72,7 +66,7 @@ export function SignupForm({ onSuccess, onToggleForm }: SignupFormProps) {
       <div className="text-center mb-7">
         <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Create account</h2>
         <p className="text-sm text-gray-500 mt-1.5">
-          Buyers shop immediately. Sellers can list products and apply for verification.
+          Create an account to start shopping immediately.
         </p>
       </div>
 
@@ -85,7 +79,7 @@ export function SignupForm({ onSuccess, onToggleForm }: SignupFormProps) {
         )}
 
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-gray-600">Customer | Seller/Shop name</label>
+          <label className="text-xs font-medium text-gray-600">Full name</label>
           <Input type="text" placeholder="Your name" error={!!errors.fullName} disabled={isLoading} {...register('fullName')} />
           {errors.fullName && <p className="text-xs text-rose-500">{errors.fullName.message}</p>}
         </div>
@@ -102,35 +96,6 @@ export function SignupForm({ onSuccess, onToggleForm }: SignupFormProps) {
           {errors.password && <p className="text-xs text-rose-500">{errors.password.message}</p>}
         </div>
 
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-gray-600">Account type</label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              disabled={isLoading}
-              onClick={() => setValue('role', 'customer', { shouldValidate: true })}
-              className={`py-2.5 px-3 rounded-lg border text-sm font-medium transition-colors ${
-                selectedRole === 'customer'
-                  ? 'border-emerald-500 bg-emerald-50 text-emerald-800'
-                  : 'border-gray-200 text-gray-600 hover:border-gray-300'
-              }`}
-            >
-              Shop (buyer)
-            </button>
-            <button
-              type="button"
-              disabled={isLoading}
-              onClick={() => setValue('role', 'seller', { shouldValidate: true })}
-              className={`py-2.5 px-3 rounded-lg border text-sm font-medium transition-colors ${
-                selectedRole === 'seller'
-                  ? 'border-emerald-500 bg-emerald-50 text-emerald-800'
-                  : 'border-gray-200 text-gray-600 hover:border-gray-300'
-              }`}
-            >
-              Sell products
-            </button>
-          </div>
-        </div>
 
         <Button type="submit" className="w-full h-11" disabled={isLoading}>
           {isLoading ? 'Creating account…' : 'Create account'}
@@ -145,6 +110,15 @@ export function SignupForm({ onSuccess, onToggleForm }: SignupFormProps) {
           </button>
         </p>
       )}
+
+      <div className="mt-4 pt-4 border-t border-gray-100 text-center">
+        <p className="text-sm text-gray-500">
+          Want to sell?{' '}
+          <a href="/seller/apply" className="text-emerald-600 font-semibold hover:underline">
+            Apply as a seller →
+          </a>
+        </p>
+      </div>
     </div>
   );
 }

@@ -2,7 +2,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabaseClient } from '@/lib/supabase';
 import type { Profile, UserRole } from '@/lib/types';
 
-const VALID_ROLES: UserRole[] = ['customer', 'seller', 'admin'];
+const VALID_ROLES: UserRole[] = ['customer', 'seller', 'admin', 'pending_seller'];
 
 function parseRole(value: unknown): UserRole {
   if (typeof value === 'string' && VALID_ROLES.includes(value as UserRole)) {
@@ -27,6 +27,7 @@ export function profileFromSession(session: Session): Profile {
     is_banned: false,
     ban_reason: null,
     banned_at: null,
+    seller_tier: null,
   };
 }
 

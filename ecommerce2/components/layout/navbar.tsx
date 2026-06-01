@@ -59,6 +59,12 @@ export function Navbar() {
               </Link>
             )}
 
+            {(!user || isCustomer) && (
+              <Link href="/seller/apply" className="text-sm font-semibold text-gray-600 hover:text-emerald-600 transition-colors">
+                Become a Seller
+              </Link>
+            )}
+
             {user && (
               <>
                 {isCustomer && (
@@ -158,6 +164,16 @@ export function Navbar() {
                 className="block text-base font-semibold text-gray-600 hover:text-emerald-600"
               >
                 Marketplace
+              </Link>
+            )}
+
+            {(!user || isCustomer) && (
+              <Link
+                href="/seller/apply"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="block text-base font-semibold text-gray-600 hover:text-emerald-600"
+              >
+                Become a Seller
               </Link>
             )}
 

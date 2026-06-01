@@ -4,22 +4,23 @@ import React, { useEffect, useState } from 'react';
 import { useUserSession } from '@/features/auth/hooks/useUserSession';
 import { supabaseClient } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Check, X, FileText } from 'lucide-react';
+import { ArrowLeft, Check, X, FileText, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import type { VerificationRequest, Profile } from '@/lib/types';
+import { TIER_LABELS } from '@/lib/constants';
 
-export default function AdminVerificationsPage() {
+export default function AdminTierUpgradesPage() {
   const { user, isLoading: isSessionLoading } = useUserSession();
   const [requests, setRequests] = useState<(VerificationRequest & { seller: Profile })[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
 
   const fetchRequests = async () => {
     try {
       const { data, error } = await supabaseClient
         .from('verification_requests')
         .select('*, seller:seller_id(*)')
-        .eq('request_type', 'registration')
+        .eq('request_type', 'upgrade')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -39,7 +40,7 @@ export default function AdminVerificationsPage() {
     }
   }, [user]);
 
-  const handleApprove = async (requestId: string, sellerId: string, tier: number) => {
+  const handleApprove = async (requestId: string, sellerId: string, newTier: number) => {
     try {
       // Update verification request status
       const { error: reqError } = await supabaseClient
@@ -49,21 +50,17 @@ export default function AdminVerificationsPage() {
 
       if (reqError) throw reqError;
 
-      // Update seller role, tier, and verification status
+      // Update seller tier
       const { error: sellerError } = await supabaseClient
         .from('profiles')
-        .update({ 
-          role: 'seller',
-          seller_tier: tier,
-          is_verified: true 
-        })
+        .update({ seller_tier: newTier })
         .eq('id', sellerId);
 
       if (sellerError) throw sellerError;
 
       await fetchRequests();
     } catch (err) {
-      console.error('Failed to approve verification:', err);
+      console.error('Failed to approve tier upgrade:', err);
     }
   };
 
@@ -91,17 +88,9 @@ export default function AdminVerificationsPage() {
 
       if (reqError) throw reqError;
 
-      // Update seller verification status
-      const { error: sellerError } = await supabaseClient
-        .from('profiles')
-        .update({ is_verified: false })
-        .eq('id', sellerId);
-
-      if (sellerError) throw sellerError;
-
       await fetchRequests();
     } catch (err) {
-      console.error('Failed to reject verification:', err);
+      console.error('Failed to reject tier upgrade:', err);
     }
   };
 
@@ -124,7 +113,7 @@ export default function AdminVerificationsPage() {
         <span className="text-5xl">🔒</span>
         <h3 className="text-xl font-bold text-gray-800">Admin Area Guarded</h3>
         <p className="text-sm text-gray-500 max-w-xs mx-auto">
-          Please sign in as a system administrator to review seller verification requests.
+          Please sign in as a system administrator to review tier upgrade requests.
         </p>
         <Link href="/admin">
           <Button variant="outline">Back to admin dashboard</Button>
@@ -140,9 +129,9 @@ export default function AdminVerificationsPage() {
           <ArrowLeft className="w-3.5 h-3.5" />
           Back to Platform Overview
         </Link>
-        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight font-sans">Seller Verification Requests</h1>
+        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight font-sans">Seller Tier Upgrades</h1>
         <p className="text-sm text-gray-400 mt-1 max-w-2xl">
-          Review and approve seller verification applications. Verified sellers get a badge and increased trust from buyers.
+          Review and approve seller tier upgrade requests. Sellers submit these to increase their listing limits and unlock higher price tiers.
         </p>
       </div>
 
@@ -163,10 +152,10 @@ export default function AdminVerificationsPage() {
         ))}
       </div>
 
-      {/* Verification Requests */}
+      {/* Tier Upgrade Requests */}
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
         {filteredRequests.length === 0 ? (
-          <p className="text-sm text-gray-500 py-8 text-center bg-gray-50/20">No verification requests found.</p>
+          <p className="text-sm text-gray-500 py-8 text-center bg-gray-50/20">No tier upgrade requests found.</p>
         ) : (
           <div className="divide-y divide-gray-100">
             {filteredRequests.map((request) => (
@@ -182,18 +171,30 @@ export default function AdminVerificationsPage() {
                       }`}>
                         {request.status}
                       </span>
-                      {request.applied_tier && (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
-                          Tier {request.applied_tier}
-                        </span>
-                      )}
                     </div>
                     <p className="text-sm text-gray-500 mt-1">
                       Seller: {request.seller?.full_name} · Phone: {request.seller?.phone_number || 'N/A'}
                     </p>
                   </div>
                   <div className="text-xs text-gray-400">
-                    Applied {new Date(request.created_at).toLocaleDateString()}
+                    Requested {new Date(request.created_at).toLocaleDateString()}
+                  </div>
+                </div>
+
+                {/* Tier Comparison */}
+                <div className="flex items-center gap-4 bg-gray-50 rounded-lg p-4">
+                  <div className="flex-1">
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Current Tier</p>
+                    <p className="text-lg font-semibold text-gray-900">
+                      {request.seller?.seller_tier ? TIER_LABELS[request.seller.seller_tier] : 'Not set'}
+                    </p>
+                  </div>
+                  <TrendingUp className="w-6 h-6 text-emerald-600" />
+                  <div className="flex-1">
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Requested Tier</p>
+                    <p className="text-lg font-semibold text-emerald-600">
+                      {request.applied_tier ? TIER_LABELS[request.applied_tier] : 'Not specified'}
+                    </p>
                   </div>
                 </div>
 
@@ -262,29 +263,14 @@ export default function AdminVerificationsPage() {
 
                 {request.status === 'pending' && (
                   <div className="flex gap-2 flex-wrap">
-                    <div className="flex items-center gap-2">
-                      <select
-                        id={`tier-select-${request.id}`}
-                        className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
-                        defaultValue={request.applied_tier || 1}
-                      >
-                        <option value={1}>Tier 1 - Individual/Reseller</option>
-                        <option value={2}>Tier 2 - Small Business</option>
-                        <option value={3}>Tier 3 - Large Business/Mall</option>
-                      </select>
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          const select = document.getElementById(`tier-select-${request.id}`) as HTMLSelectElement;
-                          const tier = parseInt(select.value);
-                          handleApprove(request.id, request.seller_id, tier);
-                        }}
-                        className="bg-emerald-600 hover:bg-emerald-500"
-                      >
-                        <Check className="w-4 h-4 mr-1" />
-                        Approve
-                      </Button>
-                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => handleApprove(request.id, request.seller_id, request.applied_tier || 1)}
+                      className="bg-emerald-600 hover:bg-emerald-500"
+                    >
+                      <Check className="w-4 h-4 mr-1" />
+                      Approve Upgrade
+                    </Button>
                     <Button
                       size="sm"
                       variant="outline"

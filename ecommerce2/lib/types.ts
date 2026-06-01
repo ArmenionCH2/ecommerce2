@@ -1,6 +1,6 @@
 /** All shared TypeScript interfaces. Import from here — never redeclare inline. */
 
-export type UserRole    = 'customer' | 'seller' | 'admin';
+export type UserRole    = 'customer' | 'seller' | 'admin' | 'pending_seller';
 export type OrderStatus = 'placed' | 'packed' | 'to_receive' | 'received' | 'cancelled';
 
 export interface Profile {
@@ -13,6 +13,7 @@ export interface Profile {
   is_banned       : boolean;
   ban_reason      : string | null;
   banned_at       : string | null;
+  seller_tier     : number | null;
   metadata        : Record<string, unknown>;
   created_at      : string;
 }
@@ -106,6 +107,11 @@ export interface VerificationRequest {
   business_name       : string;
   business_description: string | null;
   business_document_url: string | null;
+  applied_tier        : number | null;
+  request_type        : 'registration' | 'upgrade';
+  id_document_url     : string | null;
+  selfie_url          : string | null;
+  rejection_count     : number;
   status              : 'pending' | 'approved' | 'rejected';
   admin_notes         : string | null;
   created_at          : string;
