@@ -185,16 +185,16 @@ export default function SellerApplyShopPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-white py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-white py-8 sm:py-12 px-4">
       <div className="max-w-2xl mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Become a Seller</h1>
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Become a Seller</h1>
           <p className="text-sm text-gray-500 mt-2">
             Step 2 of 3: Shop Information
           </p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 sm:p-8">
           {error && (
             <div className="mb-6 p-4 bg-rose-50 border border-rose-100 text-rose-700 rounded-lg text-sm flex items-center gap-2">
               <AlertCircle className="w-4 h-4" />
@@ -273,7 +273,7 @@ export default function SellerApplyShopPage() {
               </p>
             </div>
 
-            <Button type="submit" className="w-full h-11" disabled={isLoading}>
+            <Button type="submit" className="w-full h-11 sm:h-12" disabled={isLoading}>
               {isLoading ? 'Saving...' : 'Continue to Identity Verification'}
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
