@@ -57,6 +57,18 @@ export default function AdminBansPage() {
 
       if (error) throw error;
 
+      // Write audit log
+      if (user) {
+        await supabaseClient.from('admin_audit_log').insert({
+          admin_id: user.id,
+          action_type: 'BAN_USER',
+          target_type: 'profile',
+          target_id: selectedUser.id,
+          new_values: { is_banned: true, ban_reason: banReason },
+          reason: banReason || null,
+        });
+      }
+
       setSelectedUser(null);
       setBanReason('');
       await fetchUsers();
@@ -79,6 +91,18 @@ export default function AdminBansPage() {
         .eq('id', userId);
 
       if (error) throw error;
+
+      // Write audit log
+      if (user) {
+        await supabaseClient.from('admin_audit_log').insert({
+          admin_id: user.id,
+          action_type: 'UNBAN_USER',
+          target_type: 'profile',
+          target_id: userId,
+          new_values: { is_banned: false },
+        });
+      }
+
       await fetchUsers();
     } catch (err) {
       console.error('Failed to unban user:', err);

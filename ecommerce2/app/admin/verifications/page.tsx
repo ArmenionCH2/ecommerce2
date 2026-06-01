@@ -61,6 +61,17 @@ export default function AdminVerificationsPage() {
 
       if (sellerError) throw sellerError;
 
+      // Write audit log
+      if (user) {
+        await supabaseClient.from('admin_audit_log').insert({
+          admin_id: user.id,
+          action_type: 'APPROVE_VERIFICATION',
+          target_type: 'verification_request',
+          target_id: requestId,
+          new_values: { status: 'approved', seller_tier: tier },
+        });
+      }
+
       await fetchRequests();
     } catch (err) {
       console.error('Failed to approve verification:', err);
@@ -98,6 +109,18 @@ export default function AdminVerificationsPage() {
         .eq('id', sellerId);
 
       if (sellerError) throw sellerError;
+
+      // Write audit log
+      if (user) {
+        await supabaseClient.from('admin_audit_log').insert({
+          admin_id: user.id,
+          action_type: 'REJECT_VERIFICATION',
+          target_type: 'verification_request',
+          target_id: requestId,
+          new_values: { status: 'rejected', rejection_count: newCount },
+          reason: notes || null,
+        });
+      }
 
       await fetchRequests();
     } catch (err) {

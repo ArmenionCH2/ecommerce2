@@ -7,6 +7,14 @@ import { textSimilarity } from '../utils/textSimilarity';
 import type { Product, ProductVariation } from '@/lib/types';
 import { usePageVisibility } from '@/components/layout/PageVisibilityProvider';
 
+async function trackSearchQuery(queryText: string) {
+  try {
+    await supabaseClient.rpc('upsert_search_trend', { query_text: queryText.trim() });
+  } catch {
+    // non-critical
+  }
+}
+
 export function useProductLoader() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -58,6 +66,9 @@ export function useProductLoader() {
 
       if (fetchErr) throw fetchErr;
       setProducts((data as Product[]) ?? []);
+      
+      // Track search query (fire and forget)
+      if (queryText.trim().length >= 2) trackSearchQuery(queryText);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Search failed.');
     } finally {
