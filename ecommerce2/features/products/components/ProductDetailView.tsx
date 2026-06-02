@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { ShoppingCart, ArrowLeft, ShieldCheck, Truck, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
 import type { Product, ProductVariation } from '@/lib/types';
@@ -20,9 +21,11 @@ export function ProductDetailView({ product, variations }: ProductDetailViewProp
   const { user } = useUserSession();
   const { addItem } = useCartActions(user && user.role === 'customer' ? user.id : null);
 
+  const router = useRouter();
   const [selectedVariation, setSelectedVariation] = useState<ProductVariation | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
+  const [isBuyingNow, setIsBuyingNow] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [successMessage, setSuccessMessage] = useState(false);
 
@@ -71,6 +74,27 @@ export function ProductDetailView({ product, variations }: ProductDetailViewProp
     }
   };
 
+  const handleBuyNow = async () => {
+    if (!user) {
+      alert('Please sign in to purchase products.');
+      return;
+    }
+    if (user.role !== 'customer') {
+      alert('Only customers can purchase products.');
+      return;
+    }
+
+    setIsBuyingNow(true);
+    try {
+      await addItem(product.id, selectedVariation ? selectedVariation.id : null, quantity);
+      router.push('/checkout');
+    } catch (err) {
+      console.error('Failed to add item to cart', err);
+    } finally {
+      setIsBuyingNow(false);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in-50 duration-300">
       {/* Back navigation */}
@@ -111,7 +135,13 @@ export function ProductDetailView({ product, variations }: ProductDetailViewProp
               <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">{product.title}</h1>
               {product.profiles?.full_name && (
                 <p className="text-sm text-gray-500 mt-1 flex items-center gap-1">
-                  <span className="font-semibold">Sold by</span> {product.profiles.full_name}
+                  <span className="font-semibold">Sold by</span>{' '}
+                  <Link
+                    href={`/store/${product.seller_id}`}
+                    className="text-emerald-600 hover:underline font-semibold"
+                  >
+                    {product.profiles.full_name}
+                  </Link>
                 </p>
               )}
             </div>
@@ -153,17 +183,31 @@ export function ProductDetailView({ product, variations }: ProductDetailViewProp
                   <button
                     type="button"
                     onClick={handleDecrement}
-                    className="w-10 h-10 flex items-center justify-center font-bold text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
+                    className="w-10 h-10 flex items-center justify-center font-bold text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer active:scale-95 active:opacity-80"
                   >
                     -
                   </button>
-                  <span className="w-12 text-center text-sm font-bold text-gray-800">
-                    {quantity}
-                  </span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={maxStock}
+                    value={quantity}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      if (!isNaN(val)) {
+                        const clamped = Math.max(1, Math.min(val, maxStock));
+                        setQuantity(clamped);
+                      }
+                    }}
+                    onBlur={() => {
+                      if (quantity < 1 || isNaN(quantity)) setQuantity(1);
+                    }}
+                    className="w-12 text-center text-sm font-bold text-gray-800 bg-transparent border-0 focus:outline-none"
+                  />
                   <button
                     type="button"
                     onClick={handleIncrement}
-                    className="w-10 h-10 flex items-center justify-center font-bold text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
+                    className="w-10 h-10 flex items-center justify-center font-bold text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer active:scale-95 active:opacity-80"
                   >
                     +
                   </button>
@@ -178,12 +222,21 @@ export function ProductDetailView({ product, variations }: ProductDetailViewProp
             )}
 
             <Button
-              className="w-full h-12 gap-2"
+              className="w-full h-12 gap-2 active:scale-95 active:opacity-80"
               disabled={isOutOfStock || isAdding}
               onClick={handleAddToCart}
             >
               <ShoppingCart className="w-5 h-5" />
               {isOutOfStock ? 'Sold Out' : isAdding ? 'Adding...' : 'Add to Cart'}
+            </Button>
+
+            <Button
+              variant="outline"
+              className="w-full h-12 gap-2 active:scale-95 active:opacity-80"
+              disabled={isOutOfStock || isBuyingNow}
+              onClick={handleBuyNow}
+            >
+              {isOutOfStock ? 'Sold Out' : isBuyingNow ? 'Processing...' : 'Buy Now'}
             </Button>
 
             {/* Badges / Guarantees */}

@@ -344,6 +344,14 @@ CREATE POLICY "Customers can mark own orders as received"
   USING (customer_id = auth.uid())
   WITH CHECK (customer_id = auth.uid() AND status = 'received');
 
+-- Fix: Add RLS UPDATE policy for customers to update own profile
+DROP POLICY IF EXISTS "Customers can update own profile" ON public.profiles;
+
+CREATE POLICY "Customers can update own profile"
+  ON public.profiles FOR UPDATE
+  USING (auth.uid() = id)
+  WITH CHECK (auth.uid() = id);
+
 -- Trigger: notify seller when a new order contains their product
 CREATE OR REPLACE FUNCTION public.notify_seller_new_order()
 RETURNS trigger AS $$

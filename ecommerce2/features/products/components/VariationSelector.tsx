@@ -42,7 +42,7 @@ export function VariationSelector({
                   type="button"
                   disabled={isOutOfStock}
                   onClick={() => onSelectVariation(isSelected ? null : v)}
-                  className={`py-2.5 px-4 rounded-xl border text-sm font-semibold transition-all duration-200 cursor-pointer ${
+                  className={`py-2.5 px-4 rounded-xl border text-sm font-semibold transition-all duration-200 cursor-pointer active:scale-95 transition-transform ${
                     isSelected
                       ? 'border-emerald-600 bg-emerald-50 text-emerald-700 shadow-xs'
                       : isOutOfStock

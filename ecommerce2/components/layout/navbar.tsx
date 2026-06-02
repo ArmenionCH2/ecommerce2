@@ -60,12 +60,6 @@ export function Navbar() {
               </Link>
             )}
 
-            {(!user || isCustomer) && (
-              <Link href="/seller/apply" className="text-sm font-semibold text-gray-600 hover:text-emerald-600 transition-colors">
-                Become a Seller
-              </Link>
-            )}
-
             {user && (
               <>
                 {isCustomer && (

@@ -7,6 +7,7 @@ import { useCartActions } from '@/features/cart/hooks/useCartActions';
 import { DeliveryAddressForm, AddressFormData } from '@/features/checkout/components/DeliveryAddressForm';
 import { CheckoutSummaryCard } from '@/features/checkout/components/CheckoutSummaryCard';
 import { placeOrderClient } from '@/features/checkout/checkoutClient';
+import { supabaseClient } from '@/lib/supabase';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -20,9 +21,24 @@ export default function CheckoutTerminal() {
   const [addressData, setAddressData] = useState<AddressFormData | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const handleAddressSubmit = (data: AddressFormData) => {
+  const handleAddressSubmit = async (data: AddressFormData) => {
     setAddressData(data);
     setErrorMsg(null);
+
+    // Save to profile for future checkouts (fire and forget)
+    if (user) {
+      supabaseClient
+        .from('profiles')
+        .update({
+          full_name: data.fullName,
+          phone_number: data.phoneNumber,
+          delivery_address: data.address,
+        })
+        .eq('id', user.id)
+        .then(({ error }) => {
+          if (error) console.error('[Checkout] Failed to save address to profile:', error.message);
+        });
+    }
   };
 
   const handlePlaceOrder = async () => {
@@ -128,6 +144,7 @@ export default function CheckoutTerminal() {
             }}
             onSubmit={handleAddressSubmit}
             isLoading={isPlacingOrder}
+            hasSavedAddress={!!(user.phone_number && user.delivery_address)}
           />
         </div>
 

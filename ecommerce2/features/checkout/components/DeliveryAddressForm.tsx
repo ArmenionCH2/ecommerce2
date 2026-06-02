@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CheckCircle } from 'lucide-react';
 
 const addressSchema = z.object({
   fullName: z.string().min(2, { message: 'Name must be at least 2 characters' }),
@@ -20,14 +21,16 @@ export type AddressFormData = z.infer<typeof addressSchema>;
 
 interface DeliveryAddressFormProps {
   defaultValues?: Partial<AddressFormData>;
-  onSubmit: (data: AddressFormData) => void;
+  onSubmit: (data: AddressFormData) => void | Promise<void>;
   isLoading: boolean;
+  hasSavedAddress?: boolean;
 }
 
 export function DeliveryAddressForm({
   defaultValues,
   onSubmit,
   isLoading,
+  hasSavedAddress,
 }: DeliveryAddressFormProps) {
   const {
     register,
@@ -44,6 +47,13 @@ export function DeliveryAddressForm({
         <h3 className="text-lg font-bold text-gray-900">Delivery Information</h3>
         <p className="text-xs text-gray-400 mt-1">Please enter your shipping address and phone number for Cash on Delivery.</p>
       </div>
+
+      {hasSavedAddress && (
+        <div className="flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full w-fit">
+          <CheckCircle className="w-3.5 h-3.5" />
+          Using your saved address
+        </div>
+      )}
 
       <div className="space-y-1.5">
         <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Recipient Name</label>
