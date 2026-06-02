@@ -109,7 +109,7 @@ export default function AdminDashboardPage() {
   }, [user, fetchPlatformData]);
 
   const handleDeactivate = async (productId: number) => {
-    const ok = await deactivateProduct(productId);
+    const ok = await deactivateProduct(productId, user.id);
     if (ok.success) {
       await fetchPlatformData();
       return true;
