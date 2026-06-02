@@ -37,12 +37,23 @@ export function ReviewSection({ productId, orderId, onReviewSubmitted }: ReviewS
 
       if (error) throw error;
       setReviews((data as unknown as Review[]) ?? []);
+
+      // If editing, pre-fill form with existing review
+      if (orderId) {
+        const existingReview = (data as unknown as Review[])?.find(
+          (r: Review) => r.order_id === orderId && r.customer_id === user?.id
+        );
+        if (existingReview) {
+          setRating(existingReview.rating);
+          setComment(existingReview.comment || '');
+        }
+      }
     } catch (err) {
       console.error('Failed to load reviews', err);
     } finally {
       setIsLoading(false);
     }
-  }, [productId]);
+  }, [productId, orderId, user?.id]);
 
   useEffect(() => {
     Promise.resolve().then(() => {
@@ -114,7 +125,7 @@ export function ReviewSection({ productId, orderId, onReviewSubmitted }: ReviewS
       )}
 
       {/* Review Submission Form (Customers Only) */}
-      {user && user.role === 'customer' && orderId && !onReviewSubmitted && (
+      {user && user.role === 'customer' && orderId && (
         <form onSubmit={handleSubmit} className="p-5 border border-gray-100 bg-gray-50/30 rounded-2xl space-y-4">
           <h4 className="font-bold text-gray-900 text-sm">Write a Product Review</h4>
 

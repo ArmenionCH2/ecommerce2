@@ -34,6 +34,7 @@ export async function submitReview(payload: ReviewPayload): Promise<ReviewResult
       order_id   : payload.orderId,
       rating     : payload.rating,
       comment    : payload.comment,
+      updated_at: new Date().toISOString(),
     }, {
       onConflict: 'product_id,customer_id,order_id',
     });

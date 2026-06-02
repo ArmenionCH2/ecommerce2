@@ -4,6 +4,7 @@ import React from 'react';
 import type { Review } from '@/lib/types';
 import { ReviewStars } from './ReviewStars';
 import { formatDate } from '@/lib/utils';
+import { Clock } from 'lucide-react';
 import { User } from 'lucide-react';
 
 interface CommentListProps {
@@ -57,7 +58,15 @@ export function CommentList({ reviews, isLoading }: CommentListProps) {
             </div>
 
             <div className="pl-9 space-y-1">
-              <ReviewStars rating={review.rating} />
+              <div className="flex items-center gap-2">
+                <ReviewStars rating={review.rating} />
+                {review.updated_at && review.updated_at !== review.created_at && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 border border-amber-200 rounded-full text-[10px] font-bold text-amber-700">
+                    <Clock className="w-2.5 h-2.5" />
+                    Edited
+                  </span>
+                )}
+              </div>
               {review.comment && (
                 <p className="text-sm text-gray-600 leading-relaxed pt-1">{review.comment}</p>
               )}

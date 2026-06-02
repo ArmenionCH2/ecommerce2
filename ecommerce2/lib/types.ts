@@ -80,6 +80,7 @@ export interface Review {
   rating      : number;
   comment     : string | null;
   created_at  : string;
+  updated_at  : string | null;
   profile?    : Pick<Profile, 'full_name'>; // Join-expanded (optional)
 }
 

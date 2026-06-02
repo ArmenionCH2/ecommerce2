@@ -31,8 +31,6 @@ export function CourierTrackerCard({ order, onCancelOrder, onRefresh }: CourierT
   const [reviewingProductId, setReviewingProductId] = React.useState<number | null>(null);
   const [showReviewModal, setShowReviewModal] = React.useState(false);
   const [reviewedProductIds, setReviewedProductIds] = React.useState<Set<number>>(new Set());
-  const [viewingReviewProductId, setViewingReviewProductId] = React.useState<number | null>(null);
-  const [showViewReviewModal, setShowViewReviewModal] = React.useState(false);
 
   // Courier timeline steps based on order status
   const steps = [
@@ -260,16 +258,17 @@ export function CourierTrackerCard({ order, onCancelOrder, onRefresh }: CourierT
                   {status === 'received' && (
                     <div className="mt-2">
                       {reviewedProductIds.has(item.product_id) ? (
-                        <button
+                        <Button
+                          size="sm"
                           onClick={() => {
-                            setViewingReviewProductId(item.product_id);
-                            setShowViewReviewModal(true);
+                            setReviewingProductId(item.product_id);
+                            setShowReviewModal(true);
                           }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors cursor-pointer"
+                          className="h-8 px-3 text-xs font-semibold gap-1.5 bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
                         >
-                          <Star className="w-3.5 h-3.5 text-emerald-600 fill-emerald-600" />
-                          <span className="text-xs font-bold text-emerald-700">View Review</span>
-                        </button>
+                          <Star className="w-3.5 h-3.5 fill-emerald-600" />
+                          Edit Review
+                        </Button>
                       ) : (
                         <Button
                           size="sm"
@@ -394,7 +393,7 @@ export function CourierTrackerCard({ order, onCancelOrder, onRefresh }: CourierT
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Star className="w-5 h-5 text-emerald-600" />
-                Write a Review
+                {reviewedProductIds.has(reviewingProductId || 0) ? 'Edit Your Review' : 'Write a Review'}
               </DialogTitle>
             </DialogHeader>
             {reviewingProductId && (
@@ -407,26 +406,6 @@ export function CourierTrackerCard({ order, onCancelOrder, onRefresh }: CourierT
                   setReviewingProductId(null);
                 }}
               />
-            )}
-          </DialogContent>
-        </Dialog>
-
-        {/* View Review Modal */}
-        <Dialog open={showViewReviewModal} onOpenChange={(open) => {
-          setShowViewReviewModal(open);
-          if (!open) {
-            setViewingReviewProductId(null);
-          }
-        }}>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Star className="w-5 h-5 text-emerald-600 fill-emerald-600" />
-                Your Review
-              </DialogTitle>
-            </DialogHeader>
-            {viewingReviewProductId && (
-              <ReviewSection productId={viewingReviewProductId} orderId={id} />
             )}
           </DialogContent>
         </Dialog>
