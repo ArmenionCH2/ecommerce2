@@ -12,11 +12,13 @@ import { Button } from '@/components/ui/button';
 interface CourierTrackerCardProps {
   order: Order;
   onCancelOrder?: (orderId: number) => void;
+  onRefresh?: () => void;
 }
 
-export function CourierTrackerCard({ order, onCancelOrder }: CourierTrackerCardProps) {
+export function CourierTrackerCard({ order, onCancelOrder, onRefresh }: CourierTrackerCardProps) {
   const { order_items: items = [], status, created_at, id, total_amount } = order;
   const [isCancelling, setIsCancelling] = React.useState(false);
+  const [isMarkingReceived, setIsMarkingReceived] = React.useState(false);
 
   // Courier timeline steps based on order status
   const steps = [
@@ -133,6 +135,33 @@ export function CourierTrackerCard({ order, onCancelOrder }: CourierTrackerCardP
             >
               <X className="w-4 h-4 mr-2" />
               {isCancelling ? 'Cancelling...' : 'Cancel Order'}
+            </Button>
+          </div>
+        )}
+
+        {/* Mark as Received button for orders on the way */}
+        {status === 'to_receive' && (
+          <div className="mt-4">
+            <Button
+              className="w-full bg-emerald-600 hover:bg-emerald-500"
+              disabled={isMarkingReceived}
+              onClick={async () => {
+                setIsMarkingReceived(true);
+                try {
+                  const { supabaseClient } = await import('@/lib/supabase');
+                  await supabaseClient
+                    .from('orders')
+                    .update({ status: 'received' })
+                    .eq('id', id);
+                  window.dispatchEvent(new Event('orders-updated'));
+                  onRefresh?.();
+                } finally {
+                  setIsMarkingReceived(false);
+                }
+              }}
+            >
+              <Smile className="w-4 h-4 mr-2" />
+              {isMarkingReceived ? 'Marking...' : 'Mark as Received'}
             </Button>
           </div>
         )}

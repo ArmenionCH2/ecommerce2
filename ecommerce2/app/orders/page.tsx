@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 export default function CustomerOrdersPage() {
   const { user, isLoading: isSessionLoading } = useUserSession();
   const customerId = user && user.role === 'customer' ? user.id : null;
-  const { orders, isLoading: isOrdersLoading, cancelOrder } = useOrderStatus(customerId);
+  const { orders, isLoading: isOrdersLoading, cancelOrder, refreshOrders } = useOrderStatus(customerId);
 
   if (isSessionLoading) {
     return (
@@ -46,7 +46,7 @@ export default function CustomerOrdersPage() {
         <p className="text-sm text-gray-400 mt-1">Track deliveries and view your order history in real time.</p>
       </div>
 
-      <OrderStatusTabs orders={orders} isLoading={isOrdersLoading} onCancelOrder={cancelOrder} />
+      <OrderStatusTabs orders={orders} isLoading={isOrdersLoading} onCancelOrder={cancelOrder} onRefresh={refreshOrders} />
     </div>
   );
 }

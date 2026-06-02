@@ -13,9 +13,12 @@ export default function SellerSettingsPage() {
   const [isVerified, setIsVerified] = useState(false);
   const [existingRequest, setExistingRequest] = useState<VerificationRequest | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [isSubmittingVerification, setIsSubmittingVerification] = useState(false);
+  const [isSubmittingPayout, setIsSubmittingPayout] = useState(false);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+  const [verificationSuccess, setVerificationSuccess] = useState<string | null>(null);
+  const [payoutError, setPayoutError] = useState<string | null>(null);
+  const [payoutSuccess, setPayoutSuccess] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     businessName: '',
@@ -60,6 +63,8 @@ export default function SellerSettingsPage() {
       }
     } catch (err) {
       console.error('Failed to fetch verification status:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -70,7 +75,7 @@ export default function SellerSettingsPage() {
         .from('seller_balances')
         .select('*')
         .eq('seller_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (balance) {
         setSellerBalance(balance as SellerBalance);
@@ -110,13 +115,13 @@ export default function SellerSettingsPage() {
     e.preventDefault();
     if (!user) return;
 
-    setIsSubmitting(true);
-    setErrorMsg(null);
-    setSuccessMsg(null);
+    setIsSubmittingVerification(true);
+    setVerificationError(null);
+    setVerificationSuccess(null);
 
     try {
       if (existingRequest && existingRequest.status === 'pending') {
-        setErrorMsg('You already have a pending verification request.');
+        setVerificationError('You already have a pending verification request.');
         return;
       }
 
@@ -132,20 +137,20 @@ export default function SellerSettingsPage() {
 
       if (error) throw error;
 
-      setSuccessMsg('Verification request submitted successfully! We will review your application.');
+      setVerificationSuccess('Verification request submitted successfully! We will review your application.');
       await fetchVerificationStatus();
       setFormData({ businessName: '', businessDescription: '', businessDocumentUrl: '' });
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Failed to submit verification request.');
+      setVerificationError(err instanceof Error ? err.message : 'Failed to submit verification request.');
     } finally {
-      setIsSubmitting(false);
+      setIsSubmittingVerification(false);
     }
   };
 
   const handleDocumentUpload = async (file: File) => {
     if (!user) return;
-    setIsSubmitting(true);
-    setErrorMsg(null);
+    setIsSubmittingVerification(true);
+    setVerificationError(null);
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
@@ -163,9 +168,9 @@ export default function SellerSettingsPage() {
 
       setFormData({ ...formData, businessDocumentUrl: publicUrl });
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Failed to upload document.');
+      setVerificationError(err instanceof Error ? err.message : 'Failed to upload document.');
     } finally {
-      setIsSubmitting(false);
+      setIsSubmittingVerification(false);
     }
   };
 
@@ -175,17 +180,17 @@ export default function SellerSettingsPage() {
 
     const amount = parseFloat(payoutForm.amount);
     if (isNaN(amount) || amount <= 0) {
-      setErrorMsg('Please enter a valid amount.');
+      setPayoutError('Please enter a valid amount.');
       return;
     }
     if (amount > sellerBalance.available_balance) {
-      setErrorMsg(`Amount exceeds available balance (₱${sellerBalance.available_balance.toFixed(2)}).`);
+      setPayoutError(`Amount exceeds available balance (₱${sellerBalance.available_balance.toFixed(2)}).`);
       return;
     }
 
-    setIsSubmitting(true);
-    setErrorMsg(null);
-    setSuccessMsg(null);
+    setIsSubmittingPayout(true);
+    setPayoutError(null);
+    setPayoutSuccess(null);
 
     try {
       const { error } = await supabaseClient
@@ -203,14 +208,14 @@ export default function SellerSettingsPage() {
 
       if (error) throw error;
 
-      setSuccessMsg('Payout request submitted successfully!');
+      setPayoutSuccess('Payout request submitted successfully!');
       setPayoutForm({ amount: '', payoutMethod: 'GCash', gcashNumber: '', accountName: '' });
       await fetchSellerBalance();
       await fetchRecentPayouts();
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Failed to submit payout request.');
+      setPayoutError(err instanceof Error ? err.message : 'Failed to submit payout request.');
     } finally {
-      setIsSubmitting(false);
+      setIsSubmittingPayout(false);
     }
   };
 
@@ -320,11 +325,11 @@ export default function SellerSettingsPage() {
             <h2 className="text-lg font-bold text-gray-900">Apply for Verification</h2>
           </div>
 
-          {errorMsg && (
-            <div className="p-3 bg-rose-50 border border-rose-100 text-rose-700 rounded-lg text-sm mb-4">{errorMsg}</div>
+          {verificationError && (
+            <div className="p-3 bg-rose-50 border border-rose-100 text-rose-700 rounded-lg text-sm mb-4">{verificationError}</div>
           )}
-          {successMsg && (
-            <div className="p-3 bg-emerald-50 border border-emerald-100 text-emerald-800 rounded-lg text-sm mb-4">{successMsg}</div>
+          {verificationSuccess && (
+            <div className="p-3 bg-emerald-50 border border-emerald-100 text-emerald-800 rounded-lg text-sm mb-4">{verificationSuccess}</div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -335,7 +340,7 @@ export default function SellerSettingsPage() {
                 placeholder="Your business or shop name"
                 value={formData.businessName}
                 onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
-                disabled={isSubmitting}
+                disabled={isSubmittingVerification}
                 required
               />
             </div>
@@ -346,7 +351,7 @@ export default function SellerSettingsPage() {
                 placeholder="Describe your business, products, and experience..."
                 value={formData.businessDescription}
                 onChange={(e) => setFormData({ ...formData, businessDescription: e.target.value })}
-                disabled={isSubmitting}
+                disabled={isSubmittingVerification}
                 className="flex w-full rounded-xl border bg-white px-3 py-2 text-sm text-gray-900 transition-all duration-200 placeholder:text-gray-400 focus:outline-hidden focus:ring-2 border-gray-200 hover:border-gray-300 focus:border-emerald-500 focus:ring-emerald-200/50 min-h-[100px]"
                 required
               />
@@ -360,7 +365,7 @@ export default function SellerSettingsPage() {
                   placeholder="https://..."
                   value={formData.businessDocumentUrl}
                   onChange={(e) => setFormData({ ...formData, businessDocumentUrl: e.target.value })}
-                  disabled={isSubmitting}
+                  disabled={isSubmittingVerification}
                 />
                 <label className="flex-1">
                   <input
@@ -370,7 +375,7 @@ export default function SellerSettingsPage() {
                       const file = e.target.files?.[0];
                       if (file) handleDocumentUpload(file);
                     }}
-                    disabled={isSubmitting}
+                    disabled={isSubmittingVerification}
                     className="hidden"
                   />
                   <div className="px-3.5 py-2 rounded-xl bg-gray-50 border border-gray-100 text-xs font-bold text-gray-700 text-center cursor-pointer hover:bg-gray-100 transition-colors flex items-center justify-center gap-2">
@@ -384,10 +389,10 @@ export default function SellerSettingsPage() {
 
             <Button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmittingVerification}
               className="w-full bg-emerald-600 hover:bg-emerald-500"
             >
-              {isSubmitting ? 'Submitting...' : 'Submit Application'}
+              {isSubmittingVerification ? 'Submitting...' : 'Submit Application'}
             </Button>
           </form>
         </div>
@@ -421,11 +426,11 @@ export default function SellerSettingsPage() {
             {/* Payout Request Form */}
             <div className="border-t border-gray-100 pt-6">
               <h3 className="text-md font-bold text-gray-900 mb-4">Request Payout</h3>
-              {errorMsg && (
-                <div className="p-3 bg-rose-50 border border-rose-100 text-rose-700 rounded-lg text-sm mb-4">{errorMsg}</div>
+              {payoutError && (
+                <div className="p-3 bg-rose-50 border border-rose-100 text-rose-700 rounded-lg text-sm mb-4">{payoutError}</div>
               )}
-              {successMsg && (
-                <div className="p-3 bg-emerald-50 border border-emerald-100 text-emerald-800 rounded-lg text-sm mb-4">{successMsg}</div>
+              {payoutSuccess && (
+                <div className="p-3 bg-emerald-50 border border-emerald-100 text-emerald-800 rounded-lg text-sm mb-4">{payoutSuccess}</div>
               )}
 
               <form onSubmit={handlePayoutSubmit} className="space-y-4">
@@ -437,7 +442,7 @@ export default function SellerSettingsPage() {
                       placeholder="0.00"
                       value={payoutForm.amount}
                       onChange={(e) => setPayoutForm({ ...payoutForm, amount: e.target.value })}
-                      disabled={isSubmitting}
+                      disabled={isSubmittingPayout}
                       min="0"
                       step="0.01"
                       max={sellerBalance.available_balance}
@@ -450,7 +455,7 @@ export default function SellerSettingsPage() {
                     <select
                       value={payoutForm.payoutMethod}
                       onChange={(e) => setPayoutForm({ ...payoutForm, payoutMethod: e.target.value })}
-                      disabled={isSubmitting}
+                      disabled={isSubmittingPayout}
                       className="flex w-full rounded-xl border bg-white px-3 py-2 text-sm text-gray-900 transition-all duration-200 placeholder:text-gray-400 focus:outline-hidden focus:ring-2 border-gray-200 hover:border-gray-300 focus:border-emerald-500 focus:ring-emerald-200/50"
                     >
                       <option value="GCash">GCash</option>
@@ -469,7 +474,7 @@ export default function SellerSettingsPage() {
                         placeholder="09171234567"
                         value={payoutForm.gcashNumber}
                         onChange={(e) => setPayoutForm({ ...payoutForm, gcashNumber: e.target.value })}
-                        disabled={isSubmitting}
+                        disabled={isSubmittingPayout}
                         required
                       />
                     </div>
@@ -480,7 +485,7 @@ export default function SellerSettingsPage() {
                         placeholder="Your name"
                         value={payoutForm.accountName}
                         onChange={(e) => setPayoutForm({ ...payoutForm, accountName: e.target.value })}
-                        disabled={isSubmitting}
+                        disabled={isSubmittingPayout}
                         required
                       />
                     </div>
@@ -489,11 +494,11 @@ export default function SellerSettingsPage() {
 
                 <Button
                   type="submit"
-                  disabled={isSubmitting || sellerBalance.available_balance <= 0}
+                  disabled={isSubmittingPayout || sellerBalance.available_balance <= 0}
                   className="w-full bg-emerald-600 hover:bg-emerald-500"
                 >
                   <Send className="w-4 h-4 mr-2" />
-                  {isSubmitting ? 'Submitting...' : 'Request Payout'}
+                  {isSubmittingPayout ? 'Submitting...' : 'Request Payout'}
                 </Button>
               </form>
             </div>

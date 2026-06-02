@@ -8,9 +8,10 @@ interface OrderStatusTabsProps {
   orders: Order[];
   isLoading: boolean;
   onCancelOrder?: (orderId: number) => void;
+  onRefresh?: () => void;
 }
 
-export function OrderStatusTabs({ orders, isLoading, onCancelOrder }: OrderStatusTabsProps) {
+export function OrderStatusTabs({ orders, isLoading, onCancelOrder, onRefresh }: OrderStatusTabsProps) {
   const [activeTab, setActiveTab] = useState<'waiting' | 'on_the_way' | 'history'>('waiting');
 
   const waitingStatuses = ['placed'];
@@ -102,7 +103,7 @@ export function OrderStatusTabs({ orders, isLoading, onCancelOrder }: OrderStatu
       ) : (
         <div className="space-y-4">
           {filteredOrders.map((order) => (
-            <CourierTrackerCard key={order.id} order={order} onCancelOrder={onCancelOrder} />
+            <CourierTrackerCard key={order.id} order={order} onCancelOrder={onCancelOrder} onRefresh={onRefresh} />
           ))}
         </div>
       )}

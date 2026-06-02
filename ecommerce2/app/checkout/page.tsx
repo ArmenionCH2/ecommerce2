@@ -76,7 +76,7 @@ export default function CheckoutTerminal() {
         <p className="text-sm text-gray-500 max-w-xs mx-auto">
           Please sign in as a customer to proceed to checkout.
         </p>
-        <Link href="/" passHref legacyBehavior>
+        <Link href="/">
           <Button variant="outline" className="gap-1.5">
             <ArrowLeft className="w-4 h-4" />
             Back to marketplace
@@ -94,7 +94,7 @@ export default function CheckoutTerminal() {
         <p className="text-sm text-gray-500 max-w-xs mx-auto">
           Add items to your cart before checking out.
         </p>
-        <Link href="/" passHref legacyBehavior>
+        <Link href="/">
           <Button variant="outline" className="gap-1.5">
             <ArrowLeft className="w-4 h-4" />
             Browse Marketplace

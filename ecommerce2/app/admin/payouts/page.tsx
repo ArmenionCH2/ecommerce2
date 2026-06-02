@@ -184,8 +184,19 @@ export default function AdminPayoutsPage() {
 
                 {payout.payout_details && (
                   <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-500 font-semibold">Payout Details:</p>
-                    <pre className="text-xs text-gray-600 mt-1">{JSON.stringify(payout.payout_details, null, 2)}</pre>
+                    <p className="text-xs text-gray-500 font-semibold mb-2">Payout Details:</p>
+                    <div className="space-y-1">
+                      {(payout.payout_details as any).gcash_number && (
+                        <p className="text-xs text-gray-600">
+                          <span className="font-medium">GCash Number:</span> {String((payout.payout_details as any).gcash_number)}
+                        </p>
+                      )}
+                      {(payout.payout_details as any).account_name && (
+                        <p className="text-xs text-gray-600">
+                          <span className="font-medium">Account Name:</span> {String((payout.payout_details as any).account_name)}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 )}
 

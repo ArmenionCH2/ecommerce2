@@ -163,7 +163,55 @@ CREATE TRIGGER trg_refresh_customer_ltv
   FOR EACH ROW
   EXECUTE FUNCTION public.refresh_customer_ltv();
 
--- Fix 6: Create trigger to deduct seller balances on payout completion
+-- Fix 6a: Create trigger to credit seller balances when order is received
+CREATE OR REPLACE FUNCTION public.credit_seller_on_order_received()
+RETURNS trigger AS $$
+DECLARE
+  v_seller_id uuid;
+  v_gross numeric;
+  v_platform_fee_pct numeric := 0.08; -- 8% platform fee (matches PLATFORM_FEE_PERCENTAGE in constants.ts)
+  v_platform_fee numeric;
+  v_seller_amount numeric;
+BEGIN
+  IF NEW.status = 'received' AND OLD.status IS DISTINCT FROM 'received' THEN
+    -- Loop through each seller's items in this order
+    FOR v_seller_id, v_gross IN
+      SELECT
+        oi.seller_id,
+        SUM(oi.price_at_purchase * oi.quantity)
+      FROM public.order_items oi
+      WHERE oi.order_id = NEW.id
+      GROUP BY oi.seller_id
+    LOOP
+      v_platform_fee  := ROUND(v_gross * v_platform_fee_pct, 2);
+      v_seller_amount := v_gross - v_platform_fee;
+
+      -- Credit seller
+      INSERT INTO public.seller_balances (seller_id, available_balance, pending_balance, total_earnings)
+      VALUES (v_seller_id, v_seller_amount, 0, v_seller_amount)
+      ON CONFLICT (seller_id)
+      DO UPDATE SET
+        available_balance = seller_balances.available_balance + v_seller_amount,
+        total_earnings    = seller_balances.total_earnings + v_seller_amount,
+        updated_at        = now();
+
+      -- Record platform's cut
+      INSERT INTO public.order_fees (order_id, platform_fee, seller_payout, fee_percentage)
+      VALUES (NEW.id, v_platform_fee, v_seller_amount, v_platform_fee_pct);
+    END LOOP;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Drop existing trigger if it exists
+DROP TRIGGER IF EXISTS trg_credit_seller_on_received ON public.orders;
+
+CREATE TRIGGER trg_credit_seller_on_received
+  AFTER UPDATE OF status ON public.orders
+  FOR EACH ROW EXECUTE FUNCTION public.credit_seller_on_order_received();
+
+-- Fix 6b: Create trigger to deduct seller balances on payout completion
 CREATE OR REPLACE FUNCTION public.deduct_balance_on_payout_complete()
 RETURNS trigger AS $$
 BEGIN
