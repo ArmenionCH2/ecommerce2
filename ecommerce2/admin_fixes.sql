@@ -67,12 +67,15 @@ SELECT
   COUNT(DISTINCT o.id)::integer AS total_orders,
   COALESCE(SUM(oi.price_at_purchase * oi.quantity), 0) AS total_revenue,
   ROUND(
-    EXTRACT(EPOCH FROM AVG(
-      CASE WHEN o.status IN ('received','packed','to_receive')
-        THEN o.created_at
-        ELSE NULL
-      END
-    )) / 3600.0
+    COALESCE(
+      AVG(EXTRACT(EPOCH FROM (
+        CASE 
+          WHEN o.status = 'received' THEN o.updated_at - o.created_at
+          WHEN o.status IN ('packed','to_receive') THEN now() - o.created_at
+          ELSE NULL
+        END
+      )) / 3600.0
+    ), 0)
   , 1) AS average_fulfillment_time_hours,
   COALESCE(
     COUNT(DISTINCT CASE WHEN o.status = 'cancelled' THEN o.id END)::numeric /
@@ -318,6 +321,28 @@ GRANT EXECUTE ON FUNCTION public.create_notification(uuid, text, text, text, tex
 
 -- Enable realtime for notifications table
 ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+
+-- Fix: Add RLS policies for admin_audit_log
+ALTER TABLE public.admin_audit_log ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admins can read audit log" ON public.admin_audit_log;
+DROP POLICY IF EXISTS "Admins can write audit log" ON public.admin_audit_log;
+
+CREATE POLICY "Admins can read audit log"
+  ON public.admin_audit_log FOR SELECT
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+
+CREATE POLICY "Admins can write audit log"
+  ON public.admin_audit_log FOR INSERT
+  WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+
+-- Fix: Add RLS UPDATE policy for customers to mark orders as received
+DROP POLICY IF EXISTS "Customers can mark own orders as received" ON public.orders;
+
+CREATE POLICY "Customers can mark own orders as received"
+  ON public.orders FOR UPDATE
+  USING (customer_id = auth.uid())
+  WITH CHECK (customer_id = auth.uid() AND status = 'received');
 
 -- Trigger: notify seller when a new order contains their product
 CREATE OR REPLACE FUNCTION public.notify_seller_new_order()

@@ -49,6 +49,18 @@ export default function AdminPayoutsPage() {
         .eq('id', payoutId);
 
       if (error) throw error;
+      
+      // Write to audit log
+      if (user) {
+        await supabaseClient.from('admin_audit_log').insert({
+          admin_id: user.id,
+          action_type: 'PROCESS_PAYOUT',
+          target_type: 'seller_payout',
+          target_id: payoutId,
+          new_values: { status: 'processing' },
+        });
+      }
+      
       await fetchPayouts();
     } catch (err) {
       console.error('Failed to process payout:', err);
@@ -66,6 +78,18 @@ export default function AdminPayoutsPage() {
         .eq('id', payoutId);
 
       if (error) throw error;
+      
+      // Write to audit log
+      if (user) {
+        await supabaseClient.from('admin_audit_log').insert({
+          admin_id: user.id,
+          action_type: 'COMPLETE_PAYOUT',
+          target_type: 'seller_payout',
+          target_id: payoutId,
+          new_values: { status: 'completed' },
+        });
+      }
+      
       await fetchPayouts();
     } catch (err) {
       console.error('Failed to complete payout:', err);
@@ -83,6 +107,18 @@ export default function AdminPayoutsPage() {
         .eq('id', payoutId);
 
       if (error) throw error;
+      
+      // Write to audit log
+      if (user) {
+        await supabaseClient.from('admin_audit_log').insert({
+          admin_id: user.id,
+          action_type: 'REJECT_PAYOUT',
+          target_type: 'seller_payout',
+          target_id: payoutId,
+          new_values: { status: 'failed' },
+        });
+      }
+      
       await fetchPayouts();
     } catch (err) {
       console.error('Failed to reject payout:', err);

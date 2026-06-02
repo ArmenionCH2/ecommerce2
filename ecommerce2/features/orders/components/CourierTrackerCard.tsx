@@ -209,12 +209,17 @@ export function CourierTrackerCard({ order, onCancelOrder, onRefresh }: CourierT
                 setIsMarkingReceived(true);
                 try {
                   const { supabaseClient } = await import('@/lib/supabase');
-                  await supabaseClient
+                  const { error } = await supabaseClient
                     .from('orders')
                     .update({ status: 'received' })
-                    .eq('id', id);
-                  window.dispatchEvent(new Event('orders-updated'));
-                  onRefresh?.();
+                    .eq('id', id)
+                    .eq('status', 'to_receive');
+                  if (error) {
+                    console.error('Mark as received failed:', error.message);
+                  } else {
+                    window.dispatchEvent(new Event('orders-updated'));
+                    onRefresh?.();
+                  }
                 } finally {
                   setIsMarkingReceived(false);
                 }

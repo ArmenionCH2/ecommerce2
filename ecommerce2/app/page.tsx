@@ -12,6 +12,7 @@ export default function MarketplaceHome() {
   const { products, isLoading, loadFeed, searchProducts, sortBy, setSortBy, productTypeFilter, setProductTypeFilter } = useProductLoader();
   const [searchQuery, setSearchQuery] = useState('');
   const isVisible = usePageVisibility();
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     // Only load feed when page is visible
@@ -24,7 +25,11 @@ export default function MarketplaceHome() {
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
-    searchProducts(query);
+    
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      searchProducts(query);
+    }, 400);
   };
 
   const handleSortChange = (value: string) => {

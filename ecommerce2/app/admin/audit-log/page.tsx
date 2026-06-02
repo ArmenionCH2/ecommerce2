@@ -153,20 +153,32 @@ export default function AdminAuditLogPage() {
                 {log.old_values && (
                   <div className="bg-rose-50 rounded-lg p-3">
                     <p className="text-xs text-rose-500 font-semibold">Old Values:</p>
-                    <pre className="text-xs text-rose-600 mt-1">{JSON.stringify(log.old_values, null, 2)}</pre>
+                    <div className="text-xs text-rose-600 mt-1 space-y-1">
+                      {Object.entries(log.old_values).map(([key, value]) => (
+                        <div key={key} className="flex gap-2">
+                          <span className="font-semibold">{key}:</span>
+                          <span>{String(value)}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 
                 {log.new_values && (
                   <div className="bg-emerald-50 rounded-lg p-3">
                     <p className="text-xs text-emerald-500 font-semibold">New Values:</p>
-                    <pre className="text-xs text-emerald-600 mt-1">{JSON.stringify(log.new_values, null, 2)}</pre>
+                    <div className="text-xs text-emerald-600 mt-1 space-y-1">
+                      {Object.entries(log.new_values).map(([key, value]) => (
+                        <div key={key} className="flex gap-2">
+                          <span className="font-semibold">{key}:</span>
+                          <span>{String(value)}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 
-                {log.ip_address && (
-                  <p className="text-xs text-gray-400">IP: {log.ip_address}</p>
-                )}
+                
               </div>
             ))}
           </div>

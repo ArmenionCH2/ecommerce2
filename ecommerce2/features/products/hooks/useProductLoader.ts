@@ -8,11 +8,8 @@ import type { Product, ProductVariation } from '@/lib/types';
 import { usePageVisibility } from '@/components/layout/PageVisibilityProvider';
 
 async function trackSearchQuery(queryText: string) {
-  try {
-    await supabaseClient.rpc('upsert_search_trend', { query_text: queryText.trim() });
-  } catch {
-    // non-critical
-  }
+  const { error } = await supabaseClient.rpc('upsert_search_trend', { query_text: queryText.trim() });
+  if (error) console.error('[Search Trends] Failed to track:', error.message);
 }
 
 export function useProductLoader() {

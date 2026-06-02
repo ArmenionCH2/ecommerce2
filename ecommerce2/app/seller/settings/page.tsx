@@ -104,12 +104,15 @@ export default function SellerSettingsPage() {
   };
 
   useEffect(() => {
+    if (isSessionLoading) return;
     if (user && user.role === 'seller') {
       fetchVerificationStatus();
       fetchSellerBalance();
       fetchRecentPayouts();
+    } else {
+      setLoading(false);
     }
-  }, [user]);
+  }, [user, isSessionLoading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
