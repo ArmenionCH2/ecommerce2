@@ -53,7 +53,9 @@ export function ProductDetailView({ product, variations }: ProductDetailViewProp
 
   const handleAddToCart = async () => {
     if (!user) {
-      alert('Please sign in to add items to your cart.');
+      // Save redirect URL and open auth modal
+      sessionStorage.setItem('redirectAfterAuth', window.location.pathname);
+      window.dispatchEvent(new CustomEvent('openAuthModal', { detail: 'signin' }));
       return;
     }
     if (user.role !== 'customer') {
@@ -76,7 +78,9 @@ export function ProductDetailView({ product, variations }: ProductDetailViewProp
 
   const handleBuyNow = async () => {
     if (!user) {
-      alert('Please sign in to purchase products.');
+      // Save redirect URL and open auth modal
+      sessionStorage.setItem('redirectAfterAuth', window.location.pathname);
+      window.dispatchEvent(new CustomEvent('openAuthModal', { detail: 'signin' }));
       return;
     }
     if (user.role !== 'customer') {

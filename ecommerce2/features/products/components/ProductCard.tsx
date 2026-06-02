@@ -29,7 +29,9 @@ export function ProductCard({ product }: ProductCardProps) {
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent navigating to detail page
     if (!user) {
-      alert('Please sign in to add items to your cart.');
+      // Save redirect URL and open auth modal
+      sessionStorage.setItem('redirectAfterAuth', `/products/${product.id}`);
+      window.dispatchEvent(new CustomEvent('openAuthModal', { detail: 'signin' }));
       return;
     }
     if (user.role !== 'customer') {

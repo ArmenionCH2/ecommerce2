@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ShoppingCart, LogOut, ShieldAlert, Store, ShoppingBag, Menu, X } from 'lucide-react';
 import { useUserSession } from '@/features/auth/hooks/useUserSession';
 import { signOut } from '@/features/auth/authClient';
@@ -17,10 +18,20 @@ import { BRAND_EMOJI, BRAND_NAME } from '@/lib/branding';
 import { getHomePathForRole, canBrowseMarketplace } from '@/lib/roleRoutes';
 
 export function Navbar() {
+  const router = useRouter();
   const { user, isAdmin, isSeller, isCustomer } = useUserSession();
   const [authModal, setAuthModal] = useState<'signin' | 'signup' | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Listen for custom event to open auth modal
+  useEffect(() => {
+    const handleOpenAuthModal = (e: CustomEvent) => {
+      setAuthModal(e.detail as 'signin' | 'signup');
+    };
+    window.addEventListener('openAuthModal', handleOpenAuthModal as EventListener);
+    return () => window.removeEventListener('openAuthModal', handleOpenAuthModal as EventListener);
+  }, []);
 
   // Safely hook cart items. If no user or user is not a customer, hook is safe
   const customerId = user && user.role === 'customer' ? user.id : null;
@@ -234,13 +245,29 @@ export function Navbar() {
         <DialogContent className="sm:max-w-md p-0 overflow-hidden border-0 bg-transparent shadow-none">
           {authModal === 'signin' && (
             <SigninForm
-              onSuccess={() => setAuthModal(null)}
+              onSuccess={() => {
+                setAuthModal(null);
+                // Redirect to saved URL after auth
+                const redirectUrl = sessionStorage.getItem('redirectAfterAuth');
+                if (redirectUrl) {
+                  sessionStorage.removeItem('redirectAfterAuth');
+                  router.push(redirectUrl);
+                }
+              }}
               onToggleForm={() => setAuthModal('signup')}
             />
           )}
           {authModal === 'signup' && (
             <SignupForm
-              onSuccess={() => setAuthModal(null)}
+              onSuccess={() => {
+                setAuthModal(null);
+                // Redirect to saved URL after auth
+                const redirectUrl = sessionStorage.getItem('redirectAfterAuth');
+                if (redirectUrl) {
+                  sessionStorage.removeItem('redirectAfterAuth');
+                  router.push(redirectUrl);
+                }
+              }}
               onToggleForm={() => setAuthModal('signin')}
             />
           )}
