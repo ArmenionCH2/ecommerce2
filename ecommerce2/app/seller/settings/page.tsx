@@ -5,8 +5,8 @@ import { useUserSession } from '@/features/auth/hooks/useUserSession';
 import { supabaseClient } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { CheckCircle, Clock, XCircle, FileText, Upload, Shield } from 'lucide-react';
-import type { VerificationRequest } from '@/lib/types';
+import { CheckCircle, Clock, XCircle, FileText, Upload, Shield, Wallet, Send } from 'lucide-react';
+import type { VerificationRequest, SellerBalance, SellerPayout } from '@/lib/types';
 
 export default function SellerSettingsPage() {
   const { user, isLoading: isSessionLoading } = useUserSession();
@@ -22,6 +22,15 @@ export default function SellerSettingsPage() {
     businessDescription: '',
     businessDocumentUrl: '',
   });
+
+  const [sellerBalance, setSellerBalance] = useState<SellerBalance | null>(null);
+  const [payoutForm, setPayoutForm] = useState({
+    amount: '',
+    payoutMethod: 'GCash',
+    gcashNumber: '',
+    accountName: '',
+  });
+  const [recentPayouts, setRecentPayouts] = useState<SellerPayout[]>([]);
 
   const fetchVerificationStatus = async () => {
     if (!user) return;
@@ -51,14 +60,49 @@ export default function SellerSettingsPage() {
       }
     } catch (err) {
       console.error('Failed to fetch verification status:', err);
-    } finally {
-      setLoading(false);
+    }
+  };
+
+  const fetchSellerBalance = async () => {
+    if (!user) return;
+    try {
+      const { data: balance } = await supabaseClient
+        .from('seller_balances')
+        .select('*')
+        .eq('seller_id', user.id)
+        .single();
+
+      if (balance) {
+        setSellerBalance(balance as SellerBalance);
+      }
+    } catch (err) {
+      console.error('Failed to fetch seller balance:', err);
+    }
+  };
+
+  const fetchRecentPayouts = async () => {
+    if (!user) return;
+    try {
+      const { data: payouts } = await supabaseClient
+        .from('seller_payouts')
+        .select('*')
+        .eq('seller_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (payouts) {
+        setRecentPayouts(payouts as SellerPayout[]);
+      }
+    } catch (err) {
+      console.error('Failed to fetch recent payouts:', err);
     }
   };
 
   useEffect(() => {
     if (user && user.role === 'seller') {
       fetchVerificationStatus();
+      fetchSellerBalance();
+      fetchRecentPayouts();
     }
   }, [user]);
 
@@ -120,6 +164,51 @@ export default function SellerSettingsPage() {
       setFormData({ ...formData, businessDocumentUrl: publicUrl });
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Failed to upload document.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handlePayoutSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !sellerBalance) return;
+
+    const amount = parseFloat(payoutForm.amount);
+    if (isNaN(amount) || amount <= 0) {
+      setErrorMsg('Please enter a valid amount.');
+      return;
+    }
+    if (amount > sellerBalance.available_balance) {
+      setErrorMsg(`Amount exceeds available balance (₱${sellerBalance.available_balance.toFixed(2)}).`);
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    try {
+      const { error } = await supabaseClient
+        .from('seller_payouts')
+        .insert({
+          seller_id: user.id,
+          amount: amount,
+          status: 'pending',
+          payout_method: payoutForm.payoutMethod,
+          payout_details: {
+            gcash_number: payoutForm.gcashNumber,
+            account_name: payoutForm.accountName,
+          },
+        });
+
+      if (error) throw error;
+
+      setSuccessMsg('Payout request submitted successfully!');
+      setPayoutForm({ amount: '', payoutMethod: 'GCash', gcashNumber: '', accountName: '' });
+      await fetchSellerBalance();
+      await fetchRecentPayouts();
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Failed to submit payout request.');
     } finally {
       setIsSubmitting(false);
     }
@@ -303,6 +392,149 @@ export default function SellerSettingsPage() {
           </form>
         </div>
       )}
+
+      {/* Balance & Payouts Section */}
+      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <Wallet className="w-6 h-6 text-emerald-600" />
+          <h2 className="text-lg font-bold text-gray-900">Balance & Payouts</h2>
+        </div>
+
+        {sellerBalance ? (
+          <div className="space-y-6">
+            {/* Balance Display */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+                <p className="text-xs font-medium text-emerald-600 mb-1">Available Balance</p>
+                <p className="text-2xl font-bold text-emerald-900">₱{sellerBalance.available_balance.toFixed(2)}</p>
+              </div>
+              <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
+                <p className="text-xs font-medium text-amber-600 mb-1">Pending Balance</p>
+                <p className="text-2xl font-bold text-amber-900">₱{sellerBalance.pending_balance.toFixed(2)}</p>
+              </div>
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                <p className="text-xs font-medium text-gray-600 mb-1">Total Earnings</p>
+                <p className="text-2xl font-bold text-gray-900">₱{sellerBalance.total_earnings.toFixed(2)}</p>
+              </div>
+            </div>
+
+            {/* Payout Request Form */}
+            <div className="border-t border-gray-100 pt-6">
+              <h3 className="text-md font-bold text-gray-900 mb-4">Request Payout</h3>
+              {errorMsg && (
+                <div className="p-3 bg-rose-50 border border-rose-100 text-rose-700 rounded-lg text-sm mb-4">{errorMsg}</div>
+              )}
+              {successMsg && (
+                <div className="p-3 bg-emerald-50 border border-emerald-100 text-emerald-800 rounded-lg text-sm mb-4">{successMsg}</div>
+              )}
+
+              <form onSubmit={handlePayoutSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-600">Amount (₱)</label>
+                    <Input
+                      type="number"
+                      placeholder="0.00"
+                      value={payoutForm.amount}
+                      onChange={(e) => setPayoutForm({ ...payoutForm, amount: e.target.value })}
+                      disabled={isSubmitting}
+                      min="0"
+                      step="0.01"
+                      max={sellerBalance.available_balance}
+                      required
+                    />
+                    <p className="text-xs text-gray-400">Max: ₱{sellerBalance.available_balance.toFixed(2)}</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-600">Payout Method</label>
+                    <select
+                      value={payoutForm.payoutMethod}
+                      onChange={(e) => setPayoutForm({ ...payoutForm, payoutMethod: e.target.value })}
+                      disabled={isSubmitting}
+                      className="flex w-full rounded-xl border bg-white px-3 py-2 text-sm text-gray-900 transition-all duration-200 placeholder:text-gray-400 focus:outline-hidden focus:ring-2 border-gray-200 hover:border-gray-300 focus:border-emerald-500 focus:ring-emerald-200/50"
+                    >
+                      <option value="GCash">GCash</option>
+                      <option value="Bank Transfer">Bank Transfer</option>
+                      <option value="PayPal">PayPal</option>
+                    </select>
+                  </div>
+                </div>
+
+                {payoutForm.payoutMethod === 'GCash' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-gray-600">GCash Number</label>
+                      <Input
+                        type="text"
+                        placeholder="09171234567"
+                        value={payoutForm.gcashNumber}
+                        onChange={(e) => setPayoutForm({ ...payoutForm, gcashNumber: e.target.value })}
+                        disabled={isSubmitting}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-gray-600">Account Name</label>
+                      <Input
+                        type="text"
+                        placeholder="Your name"
+                        value={payoutForm.accountName}
+                        onChange={(e) => setPayoutForm({ ...payoutForm, accountName: e.target.value })}
+                        disabled={isSubmitting}
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  disabled={isSubmitting || sellerBalance.available_balance <= 0}
+                  className="w-full bg-emerald-600 hover:bg-emerald-500"
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  {isSubmitting ? 'Submitting...' : 'Request Payout'}
+                </Button>
+              </form>
+            </div>
+
+            {/* Recent Payouts */}
+            {recentPayouts.length > 0 && (
+              <div className="border-t border-gray-100 pt-6">
+                <h3 className="text-md font-bold text-gray-900 mb-4">Recent Payouts</h3>
+                <div className="space-y-3">
+                  {recentPayouts.map((payout) => (
+                    <div
+                      key={payout.id}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100"
+                    >
+                      <div>
+                        <p className="font-bold text-gray-900">₱{payout.amount.toFixed(2)}</p>
+                        <p className="text-xs text-gray-500">
+                          {payout.payout_method} • {new Date(payout.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className={`px-3 py-1 rounded-full text-xs font-bold ${
+                        payout.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
+                        payout.status === 'processing' ? 'bg-blue-100 text-blue-700' :
+                        payout.status === 'failed' ? 'bg-rose-100 text-rose-700' :
+                        'bg-amber-100 text-amber-700'
+                      }`}>
+                        {payout.status.charAt(0).toUpperCase() + payout.status.slice(1)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <Wallet className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+            <p className="text-sm">No balance information available.</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
