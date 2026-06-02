@@ -62,7 +62,7 @@ export function SigninForm({ onSuccess, onToggleForm }: SigninFormProps) {
     <div className="w-full max-w-md p-6 sm:p-8 bg-white rounded-2xl shadow-lg border border-gray-100/80">
       <div className="text-center mb-7">
         <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Welcome back</h2>
-        <p className="text-sm text-gray-500 mt-1.5">Sign in to your MarketHub account</p>
+        <p className="text-sm text-gray-500 mt-1.5">Sign in to your ACertain account</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

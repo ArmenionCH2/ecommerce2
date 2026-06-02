@@ -103,7 +103,7 @@ export async function fetchProfileWithRetry(
 ): Promise<Profile | null> {
   // Prevent concurrent fetches
   if (isFetchingProfile) {
-    console.warn('[MarketHub] Profile fetch already in progress, skipping');
+    console.warn('[ACertain] Profile fetch already in progress, skipping');
     return session ? profileFromSession(session) : null;
   }
 

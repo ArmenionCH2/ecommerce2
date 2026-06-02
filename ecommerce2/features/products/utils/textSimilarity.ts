@@ -20,6 +20,6 @@ export async function textSimilarity(
   limit = 10
 ): Promise<Product[]> {
   // Stub: returns empty until Phase 2 is implemented
-  console.info('[GreenMarket] textSimilarity: Phase 2 not yet active.', searchTerm, limit);
+  console.info('[ACertain] textSimilarity: Phase 2 not yet active.', searchTerm, limit);
   return [];
 }

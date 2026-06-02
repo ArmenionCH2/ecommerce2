@@ -18,6 +18,6 @@ import type { Product } from '@/lib/types';
 /** @todo Phase 2: Implement review-aggregation feed scoring */
 export async function trendingAlgo(limit = 20): Promise<Product[]> {
   // Stub: falls back to baseFeed until Phase 2 is implemented
-  console.info('[GreenMarket] trendingAlgo: Phase 2 not yet active. Using baseFeed.');
+  console.info('[ACertain] trendingAlgo: Phase 2 not yet active. Using baseFeed.');
   return baseFeed(limit);
 }

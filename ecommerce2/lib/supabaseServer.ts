@@ -10,7 +10,7 @@ export function createServerClient() {
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_KEY;
 
   if (!url || !key) {
-    throw new Error('[MarketHub] Missing Supabase environment variables.');
+    throw new Error('[ACertain] Missing Supabase environment variables.');
   }
 
   return createClient(url, key);

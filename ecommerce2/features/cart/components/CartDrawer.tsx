@@ -35,7 +35,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogPortal>
         <DialogOverlay />
-        <DialogContent className="fixed right-0 top-0 bottom-0 left-auto z-50 h-full w-full max-w-md translate-x-0 translate-y-0 rounded-none border-t-0 border-b-0 border-r-0 border-l border-gray-100 bg-white p-0 shadow-2xl flex flex-col justify-between duration-300">
+        <DialogContent showClose={false} className="fixed right-0 top-0 bottom-0 left-auto z-50 h-full w-full max-w-md translate-x-0 translate-y-0 rounded-none border-t-0 border-b-0 border-r-0 border-l border-gray-100 bg-white p-0 shadow-2xl flex flex-col justify-between duration-300">
           
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-5 border-b border-gray-50 flex-shrink-0">

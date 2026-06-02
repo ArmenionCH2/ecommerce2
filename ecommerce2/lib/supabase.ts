@@ -4,7 +4,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  throw new Error('[MarketHub] Missing Supabase environment variables.');
+  throw new Error('[ACertain] Missing Supabase environment variables.');
 }
 
 /**

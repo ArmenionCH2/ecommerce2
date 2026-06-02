@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'MarketHub — Online Marketplace (COD)',
+  title: 'ACertain — Online Marketplace (COD)',
   description:
     'Shop thousands of products from verified sellers. Cash on Delivery, flat ₱100 shipping, order tracking, and seller dashboards.',
 };

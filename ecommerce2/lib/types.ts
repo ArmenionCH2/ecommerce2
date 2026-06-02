@@ -76,6 +76,7 @@ export interface Review {
   id          : number;
   product_id  : number;
   customer_id : string;
+  order_id    : number | null;
   rating      : number;
   comment     : string | null;
   created_at  : string;

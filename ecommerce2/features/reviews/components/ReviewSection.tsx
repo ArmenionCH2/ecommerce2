@@ -11,9 +11,10 @@ import type { Review } from '@/lib/types';
 
 interface ReviewSectionProps {
   productId: number;
+  orderId?: number;
 }
 
-export function ReviewSection({ productId }: ReviewSectionProps) {
+export function ReviewSection({ productId, orderId }: ReviewSectionProps) {
   const { user } = useUserSession();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -50,7 +51,10 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !orderId) {
+      setErrorMsg('Order context is required to submit a review.');
+      return;
+    }
 
     setIsSubmitting(true);
     setErrorMsg(null);
@@ -60,6 +64,7 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
       const res = await submitReview({
         customerId: user.id,
         productId,
+        orderId,
         rating,
         comment: comment.trim() || null,
       });
@@ -107,10 +112,10 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
       )}
 
       {/* Review Submission Form (Customers Only) */}
-      {user && user.role === 'customer' && (
+      {user && user.role === 'customer' && orderId && (
         <form onSubmit={handleSubmit} className="p-5 border border-gray-100 bg-gray-50/30 rounded-2xl space-y-4">
           <h4 className="font-bold text-gray-900 text-sm">Write a Product Review</h4>
-          
+
           {errorMsg && (
             <div className="p-3 bg-rose-50 border border-rose-100 text-rose-600 text-xs font-semibold rounded-xl animate-pulse">
               {errorMsg}

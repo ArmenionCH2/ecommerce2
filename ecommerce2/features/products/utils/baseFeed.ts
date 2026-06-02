@@ -55,7 +55,7 @@ export async function baseFeed(limit = 20, sortBy: SortOption = 'newest', produc
   const { data, error } = await query.limit(limit);
 
   if (error) {
-    console.error('[MarketHub] baseFeed error:', error.message);
+    console.error('[ACertain] baseFeed error:', error.message);
     return [];
   }
 

@@ -13,6 +13,7 @@ import { createServerClient } from '@/lib/supabaseServer';
 interface ReviewPayload {
   customerId : string;
   productId  : number;
+  orderId    : number;
   rating     : number;  // 1–5
   comment    : string | null;
 }
@@ -27,11 +28,14 @@ export async function submitReview(payload: ReviewPayload): Promise<ReviewResult
 
   const { error } = await supabase
     .from('reviews')
-    .insert({
+    .upsert({
       customer_id: payload.customerId,
       product_id : payload.productId,
+      order_id   : payload.orderId,
       rating     : payload.rating,
       comment    : payload.comment,
+    }, {
+      onConflict: 'product_id,customer_id,order_id',
     });
 
   if (error) {

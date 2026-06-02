@@ -69,14 +69,14 @@ export async function executeOrderPlacement(
 
     if (cartError) {
       // Non-fatal — order is placed; log and continue
-      console.warn('[GreenMarket] Cart clear failed (non-fatal):', cartError.message);
+      console.warn('[ACertain] Cart clear failed (non-fatal):', cartError.message);
     }
 
     return { success: true, orderId };
 
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    console.error('[GreenMarket] executeOrderPlacement error:', message);
+    console.error('[ACertain] executeOrderPlacement error:', message);
     return { success: false, error: message };
   }
 }

@@ -43,7 +43,7 @@ export async function fetchProfileWithRetry(
   // Check if there's already an active fetch for this user
   const existingFetch = activeFetches.get(userId);
   if (existingFetch) {
-    console.warn('[MarketHub] Profile fetch already in progress for user, waiting');
+    console.warn('[ACertain] Profile fetch already in progress for user, waiting');
     return existingFetch;
   }
 
@@ -66,7 +66,7 @@ export async function fetchProfileWithRetry(
 
           // timeout fired
           if (result === null) {
-            console.warn(`[MarketHub] Profile attempt ${attempt + 1} timed out`);
+            console.warn(`[ACertain] Profile attempt ${attempt + 1} timed out`);
             continue;
           }
 
@@ -75,11 +75,11 @@ export async function fetchProfileWithRetry(
           if (profile) return profile as Profile;
 
           if (error && error.code !== 'PGRST116') {
-            console.error('[MarketHub] Profile fetch error:', error.message);
+            console.error('[ACertain] Profile fetch error:', error.message);
             break;
           }
         } catch (e) {
-          console.warn(`[MarketHub] Profile attempt ${attempt + 1} failed`, e);
+          console.warn(`[ACertain] Profile attempt ${attempt + 1} failed`, e);
         }
 
         if (attempt < maxAttempts - 1) {

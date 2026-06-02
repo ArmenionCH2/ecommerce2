@@ -5,9 +5,11 @@ import type { Order } from '@/lib/types';
 import { formatPrice, formatDate } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { CheckCircle2, Package, Truck, Smile, AlertCircle, X } from 'lucide-react';
+import { CheckCircle2, Package, Truck, Smile, AlertCircle, X, Star } from 'lucide-react';
 import { ORDER_STATUS_LABELS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ReviewSection } from '@/features/reviews/components/ReviewSection';
 
 interface CourierTrackerCardProps {
   order: Order;
@@ -26,6 +28,8 @@ export function CourierTrackerCard({ order, onCancelOrder, onRefresh }: CourierT
   const [disputeSuccess, setDisputeSuccess] = React.useState(false);
   const [disputeError, setDisputeError] = React.useState<string | null>(null);
   const [existingDispute, setExistingDispute] = React.useState(false);
+  const [reviewingProductId, setReviewingProductId] = React.useState<number | null>(null);
+  const [showReviewModal, setShowReviewModal] = React.useState(false);
 
   // Courier timeline steps based on order status
   const steps = [
@@ -237,9 +241,22 @@ export function CourierTrackerCard({ order, onCancelOrder, onRefresh }: CourierT
           <div className="divide-y divide-gray-50">
             {items.map((item) => (
               <div key={item.id} className="flex justify-between items-center py-2 text-sm animate-in fade-in-50 duration-200">
-                <span className="font-semibold text-gray-700">
-                  {item.quantity}x {item.variation_details ? `${item.variation_details}` : `Product ID: ${item.product_id}`}
-                </span>
+                <div className="flex-1">
+                  <span className="font-semibold text-gray-700">
+                    {item.quantity}x {item.variation_details ? `${item.variation_details}` : `Product ID: ${item.product_id}`}
+                  </span>
+                  {status === 'received' && (
+                    <button
+                      onClick={() => {
+                        setReviewingProductId(item.product_id);
+                        setShowReviewModal(true);
+                      }}
+                      className="ml-2 text-xs text-emerald-600 hover:text-emerald-700 font-semibold underline"
+                    >
+                      Review
+                    </button>
+                  )}
+                </div>
                 <span className="font-bold text-gray-800">{formatPrice(Number(item.price_at_purchase) * item.quantity)}</span>
               </div>
             ))}
@@ -336,6 +353,21 @@ export function CourierTrackerCard({ order, onCancelOrder, onRefresh }: CourierT
             )}
           </div>
         )}
+
+        {/* Review Modal */}
+        <Dialog open={showReviewModal} onOpenChange={setShowReviewModal}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Star className="w-5 h-5 text-emerald-600" />
+                Write a Review
+              </DialogTitle>
+            </DialogHeader>
+            {reviewingProductId && (
+              <ReviewSection productId={reviewingProductId} orderId={id} />
+            )}
+          </DialogContent>
+        </Dialog>
 
       </CardContent>
     </Card>
