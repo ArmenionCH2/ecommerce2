@@ -316,31 +316,34 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 GRANT EXECUTE ON FUNCTION public.create_notification(uuid, text, text, text, text) TO authenticated;
 
+-- Enable realtime for notifications table
+ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+
 -- Trigger: notify seller when a new order contains their product
 CREATE OR REPLACE FUNCTION public.notify_seller_new_order()
 RETURNS trigger AS $$
 DECLARE
-  v_seller_id uuid;
+  v_total numeric;
 BEGIN
-  -- Notify each unique seller in this order
-  FOR v_seller_id IN
-    SELECT DISTINCT seller_id FROM public.order_items WHERE order_id = NEW.id
-  LOOP
-    PERFORM public.create_notification(
-      v_seller_id,
-      'NEW_ORDER',
-      'New Order Received',
-      'You have a new order #' || NEW.id || ' worth ₱' || NEW.total_amount::text,
-      '/seller/orders'
-    );
-  END LOOP;
+  SELECT total_amount INTO v_total FROM public.orders WHERE id = NEW.order_id;
+
+  PERFORM public.create_notification(
+    NEW.seller_id,
+    'NEW_ORDER',
+    'New Order Received',
+    'You have a new order #' || NEW.order_id || ' worth ₱' || v_total::text,
+    '/seller/orders'
+  );
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 DROP TRIGGER IF EXISTS trg_notify_seller_new_order ON public.orders;
+DROP TRIGGER IF EXISTS trg_notify_seller_new_order ON public.order_items;
+
 CREATE TRIGGER trg_notify_seller_new_order
-  AFTER INSERT ON public.orders
+  AFTER INSERT ON public.order_items
   FOR EACH ROW EXECUTE FUNCTION public.notify_seller_new_order();
 
 -- Trigger: notify customer when order status changes
