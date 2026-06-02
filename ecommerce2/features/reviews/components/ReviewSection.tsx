@@ -12,9 +12,10 @@ import type { Review } from '@/lib/types';
 interface ReviewSectionProps {
   productId: number;
   orderId?: number;
+  onReviewSubmitted?: () => void;
 }
 
-export function ReviewSection({ productId, orderId }: ReviewSectionProps) {
+export function ReviewSection({ productId, orderId, onReviewSubmitted }: ReviewSectionProps) {
   const { user } = useUserSession();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -74,6 +75,7 @@ export function ReviewSection({ productId, orderId }: ReviewSectionProps) {
         setComment('');
         setRating(5);
         await fetchReviews();
+        onReviewSubmitted?.();
       } else {
         // RLS error explanation
         if (res.error?.includes('row-level security policy')) {
@@ -112,7 +114,7 @@ export function ReviewSection({ productId, orderId }: ReviewSectionProps) {
       )}
 
       {/* Review Submission Form (Customers Only) */}
-      {user && user.role === 'customer' && orderId && (
+      {user && user.role === 'customer' && orderId && !onReviewSubmitted && (
         <form onSubmit={handleSubmit} className="p-5 border border-gray-100 bg-gray-50/30 rounded-2xl space-y-4">
           <h4 className="font-bold text-gray-900 text-sm">Write a Product Review</h4>
 

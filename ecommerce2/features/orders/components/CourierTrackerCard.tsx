@@ -30,6 +30,9 @@ export function CourierTrackerCard({ order, onCancelOrder, onRefresh }: CourierT
   const [existingDispute, setExistingDispute] = React.useState(false);
   const [reviewingProductId, setReviewingProductId] = React.useState<number | null>(null);
   const [showReviewModal, setShowReviewModal] = React.useState(false);
+  const [reviewedProductIds, setReviewedProductIds] = React.useState<Set<number>>(new Set());
+  const [viewingReviewProductId, setViewingReviewProductId] = React.useState<number | null>(null);
+  const [showViewReviewModal, setShowViewReviewModal] = React.useState(false);
 
   // Courier timeline steps based on order status
   const steps = [
@@ -76,6 +79,15 @@ export function CourierTrackerCard({ order, onCancelOrder, onRefresh }: CourierT
         .eq('order_id', id)
         .maybeSingle();
       if (data) setExistingDispute(true);
+
+      // Fetch existing reviews for this order
+      const { data: reviews } = await supabaseClient
+        .from('reviews')
+        .select('product_id')
+        .eq('order_id', id);
+      if (reviews) {
+        setReviewedProductIds(new Set(reviews.map((r: { product_id: number }) => r.product_id)));
+      }
     };
     checkExisting();
   }, [id, status]);
@@ -240,21 +252,38 @@ export function CourierTrackerCard({ order, onCancelOrder, onRefresh }: CourierT
           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Items In Order</span>
           <div className="divide-y divide-gray-50">
             {items.map((item) => (
-              <div key={item.id} className="flex justify-between items-center py-2 text-sm animate-in fade-in-50 duration-200">
+              <div key={item.id} className="flex justify-between items-center py-3 text-sm animate-in fade-in-50 duration-200">
                 <div className="flex-1">
                   <span className="font-semibold text-gray-700">
                     {item.quantity}x {item.variation_details ? `${item.variation_details}` : `Product ID: ${item.product_id}`}
                   </span>
                   {status === 'received' && (
-                    <button
-                      onClick={() => {
-                        setReviewingProductId(item.product_id);
-                        setShowReviewModal(true);
-                      }}
-                      className="ml-2 text-xs text-emerald-600 hover:text-emerald-700 font-semibold underline"
-                    >
-                      Review
-                    </button>
+                    <div className="mt-2">
+                      {reviewedProductIds.has(item.product_id) ? (
+                        <button
+                          onClick={() => {
+                            setViewingReviewProductId(item.product_id);
+                            setShowViewReviewModal(true);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors cursor-pointer"
+                        >
+                          <Star className="w-3.5 h-3.5 text-emerald-600 fill-emerald-600" />
+                          <span className="text-xs font-bold text-emerald-700">View Review</span>
+                        </button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            setReviewingProductId(item.product_id);
+                            setShowReviewModal(true);
+                          }}
+                          className="h-8 px-3 text-xs font-semibold gap-1.5 bg-emerald-600 hover:bg-emerald-500"
+                        >
+                          <Star className="w-3.5 h-3.5" />
+                          Write Review
+                        </Button>
+                      )}
+                    </div>
                   )}
                 </div>
                 <span className="font-bold text-gray-800">{formatPrice(Number(item.price_at_purchase) * item.quantity)}</span>
@@ -355,7 +384,12 @@ export function CourierTrackerCard({ order, onCancelOrder, onRefresh }: CourierT
         )}
 
         {/* Review Modal */}
-        <Dialog open={showReviewModal} onOpenChange={setShowReviewModal}>
+        <Dialog open={showReviewModal} onOpenChange={(open) => {
+          setShowReviewModal(open);
+          if (!open) {
+            setReviewingProductId(null);
+          }
+        }}>
           <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -364,7 +398,35 @@ export function CourierTrackerCard({ order, onCancelOrder, onRefresh }: CourierT
               </DialogTitle>
             </DialogHeader>
             {reviewingProductId && (
-              <ReviewSection productId={reviewingProductId} orderId={id} />
+              <ReviewSection
+                productId={reviewingProductId}
+                orderId={id}
+                onReviewSubmitted={() => {
+                  setReviewedProductIds(prev => new Set([...prev, reviewingProductId]));
+                  setShowReviewModal(false);
+                  setReviewingProductId(null);
+                }}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* View Review Modal */}
+        <Dialog open={showViewReviewModal} onOpenChange={(open) => {
+          setShowViewReviewModal(open);
+          if (!open) {
+            setViewingReviewProductId(null);
+          }
+        }}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Star className="w-5 h-5 text-emerald-600 fill-emerald-600" />
+                Your Review
+              </DialogTitle>
+            </DialogHeader>
+            {viewingReviewProductId && (
+              <ReviewSection productId={viewingReviewProductId} orderId={id} />
             )}
           </DialogContent>
         </Dialog>
