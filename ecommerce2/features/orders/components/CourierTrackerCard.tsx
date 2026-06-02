@@ -16,9 +16,16 @@ interface CourierTrackerCardProps {
 }
 
 export function CourierTrackerCard({ order, onCancelOrder, onRefresh }: CourierTrackerCardProps) {
-  const { order_items: items = [], status, created_at, id, total_amount } = order;
+  const { order_items: items = [], status, created_at, id, total_amount, customer_id } = order;
   const [isCancelling, setIsCancelling] = React.useState(false);
   const [isMarkingReceived, setIsMarkingReceived] = React.useState(false);
+  const [showDisputeForm, setShowDisputeForm] = React.useState(false);
+  const [disputeType, setDisputeType] = React.useState<'refund' | 'dispute' | 'return'>('refund');
+  const [disputeReason, setDisputeReason] = React.useState('');
+  const [isSubmittingDispute, setIsSubmittingDispute] = React.useState(false);
+  const [disputeSuccess, setDisputeSuccess] = React.useState(false);
+  const [disputeError, setDisputeError] = React.useState<string | null>(null);
+  const [existingDispute, setExistingDispute] = React.useState(false);
 
   // Courier timeline steps based on order status
   const steps = [
@@ -52,6 +59,59 @@ export function CourierTrackerCard({ order, onCancelOrder, onRefresh }: CourierT
       case 'received': return 'success';
       case 'cancelled': return 'destructive';
       default: return 'outline';
+    }
+  };
+
+  React.useEffect(() => {
+    if (status !== 'received') return;
+    const checkExisting = async () => {
+      const { supabaseClient } = await import('@/lib/supabase');
+      const { data } = await supabaseClient
+        .from('refunds_disputes')
+        .select('id')
+        .eq('order_id', id)
+        .maybeSingle();
+      if (data) setExistingDispute(true);
+    };
+    checkExisting();
+  }, [id, status]);
+
+  const handleDisputeSubmit = async () => {
+    if (!disputeReason.trim()) {
+      setDisputeError('Please describe the issue.');
+      return;
+    }
+
+    setIsSubmittingDispute(true);
+    setDisputeError(null);
+
+    try {
+      const { supabaseClient } = await import('@/lib/supabase');
+
+      const sellerId = items[0]?.seller_id;
+      if (!sellerId) throw new Error('Could not determine seller.');
+
+      const { error } = await supabaseClient
+        .from('refunds_disputes')
+        .insert({
+          order_id: id,
+          customer_id: customer_id,
+          seller_id: sellerId,
+          refund_amount: Number(total_amount),
+          reason: disputeReason.trim(),
+          dispute_type: disputeType,
+          status: 'pending',
+        });
+
+      if (error) throw error;
+
+      setDisputeSuccess(true);
+      setExistingDispute(true);
+      setShowDisputeForm(false);
+    } catch (err) {
+      setDisputeError(err instanceof Error ? err.message : 'Failed to submit. Please try again.');
+    } finally {
+      setIsSubmittingDispute(false);
     }
   };
 
@@ -180,6 +240,97 @@ export function CourierTrackerCard({ order, onCancelOrder, onRefresh }: CourierT
             ))}
           </div>
         </div>
+
+        {/* Refund/Dispute Form */}
+        {status === 'received' && (
+          <div className="border-t border-gray-50 pt-4 space-y-3">
+            {disputeSuccess && (
+              <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-sm text-emerald-700 font-semibold">
+                Your request has been submitted. Admin will review it shortly.
+              </div>
+            )}
+
+            {!existingDispute && !disputeSuccess && (
+              <>
+                {!showDisputeForm ? (
+                  <Button
+                    variant="outline"
+                    className="w-full border-amber-200 text-amber-700 hover:bg-amber-50"
+                    onClick={() => setShowDisputeForm(true)}
+                  >
+                    <AlertCircle className="w-4 h-4 mr-2" />
+                    Request Refund / Raise Dispute
+                  </Button>
+                ) : (
+                  <div className="space-y-3 p-4 bg-amber-50 border border-amber-100 rounded-xl">
+                    <p className="text-xs font-bold text-amber-800 uppercase tracking-wide">
+                      Submit a Request
+                    </p>
+
+                    {/* Dispute type selector */}
+                    <div className="flex gap-2">
+                      {(['refund', 'dispute', 'return'] as const).map((type) => (
+                        <button
+                          key={type}
+                          onClick={() => setDisputeType(type)}
+                          className={`flex-1 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                            disputeType === type
+                              ? 'bg-amber-600 text-white border-amber-600'
+                              : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                          }`}
+                        >
+                          {type.charAt(0).toUpperCase() + type.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Reason textarea */}
+                    <textarea
+                      placeholder="Describe the issue with your order..."
+                      value={disputeReason}
+                      onChange={(e) => setDisputeReason(e.target.value)}
+                      disabled={isSubmittingDispute}
+                      rows={3}
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:border-amber-500 focus:ring-amber-200/50 resize-none"
+                    />
+
+                    {disputeError && (
+                      <p className="text-xs text-rose-600 font-semibold">{disputeError}</p>
+                    )}
+
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => {
+                          setShowDisputeForm(false);
+                          setDisputeReason('');
+                          setDisputeError(null);
+                        }}
+                        disabled={isSubmittingDispute}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        className="flex-1 bg-amber-600 hover:bg-amber-500"
+                        onClick={handleDisputeSubmit}
+                        disabled={isSubmittingDispute || !disputeReason.trim()}
+                      >
+                        {isSubmittingDispute ? 'Submitting...' : 'Submit'}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {existingDispute && !disputeSuccess && (
+              <div className="p-3 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-500 text-center font-semibold">
+                A request has already been submitted for this order.
+              </div>
+            )}
+          </div>
+        )}
 
       </CardContent>
     </Card>
