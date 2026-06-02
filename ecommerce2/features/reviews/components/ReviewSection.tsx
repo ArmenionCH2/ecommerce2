@@ -89,7 +89,13 @@ export function ReviewSection({ productId, orderId, onReviewSubmitted }: ReviewS
         onReviewSubmitted?.();
       } else {
         // RLS error explanation
-        if (res.error?.includes('row-level security policy')) {
+        if (res.error === 'no_changes') {
+          setErrorMsg('No changes were made to your review.');
+          // Close modal after a short delay
+          setTimeout(() => {
+            onReviewSubmitted?.();
+          }, 1500);
+        } else if (res.error?.includes('row-level security policy')) {
           setErrorMsg('You can only review products you have purchased and received.');
         } else {
           setErrorMsg(res.error || 'Failed to submit review. You may have already reviewed this product.');

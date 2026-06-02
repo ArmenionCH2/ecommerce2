@@ -60,7 +60,7 @@ export function CommentList({ reviews, isLoading }: CommentListProps) {
             <div className="pl-9 space-y-1">
               <div className="flex items-center gap-2">
                 <ReviewStars rating={review.rating} />
-                {review.updated_at && review.updated_at !== review.created_at && (
+                {review.updated_at && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 border border-amber-200 rounded-full text-[10px] font-bold text-amber-700">
                     <Clock className="w-2.5 h-2.5" />
                     Edited
