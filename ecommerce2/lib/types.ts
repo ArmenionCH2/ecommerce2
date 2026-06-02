@@ -195,3 +195,14 @@ export interface OrderPlacementResult {
   orderId?: number;
   error?  : string;
 }
+
+export interface Notification {
+  id         : string;
+  user_id    : string;
+  type       : string;
+  title      : string;
+  message    : string;
+  link       : string | null;
+  is_read    : boolean;
+  created_at : string;
+}

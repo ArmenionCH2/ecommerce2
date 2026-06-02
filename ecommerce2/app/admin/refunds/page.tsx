@@ -57,6 +57,23 @@ export default function AdminRefundsPage() {
 
       if (error) throw error;
 
+      // Audit log — non-fatal
+      try {
+        await supabaseClient.from('admin_audit_log').insert({
+          admin_id    : user.id,
+          action_type : 'APPROVE_REFUND',
+          target_type : 'refund_dispute',
+          target_id   : refundId,
+          new_values  : {
+            status      : 'approved',
+            admin_notes : adminNotes || null,
+          },
+          reason      : adminNotes || null,
+        });
+      } catch {
+        // intentionally swallowed
+      }
+
       setSelectedRefund(null);
       setAdminNotes('');
       await fetchRefunds();
@@ -84,6 +101,23 @@ export default function AdminRefundsPage() {
 
       if (error) throw error;
 
+      // Audit log — non-fatal
+      try {
+        await supabaseClient.from('admin_audit_log').insert({
+          admin_id    : user.id,
+          action_type : 'REJECT_REFUND',
+          target_type : 'refund_dispute',
+          target_id   : refundId,
+          new_values  : {
+            status      : 'rejected',
+            admin_notes : adminNotes || null,
+          },
+          reason      : adminNotes || null,
+        });
+      } catch {
+        // intentionally swallowed
+      }
+
       setSelectedRefund(null);
       setAdminNotes('');
       await fetchRefunds();
@@ -109,6 +143,20 @@ export default function AdminRefundsPage() {
         .eq('id', refundId);
 
       if (error) throw error;
+
+      // Audit log — non-fatal
+      try {
+        await supabaseClient.from('admin_audit_log').insert({
+          admin_id    : user.id,
+          action_type : 'PROCESS_REFUND',
+          target_type : 'refund_dispute',
+          target_id   : refundId,
+          new_values  : { status: 'processed' },
+        });
+      } catch {
+        // intentionally swallowed
+      }
+
       await fetchRefunds();
     } catch (err) {
       console.error('Failed to mark refund as processed:', err);

@@ -234,3 +234,307 @@ CREATE TRIGGER trg_deduct_balance_on_payout_complete
   AFTER UPDATE OF status ON public.seller_payouts
   FOR EACH ROW
   EXECUTE FUNCTION public.deduct_balance_on_payout_complete();
+
+-- Fix 7: Create trigger to deduct seller balances on refund approval
+CREATE OR REPLACE FUNCTION public.deduct_seller_on_refund_approved()
+RETURNS trigger AS $$
+BEGIN
+  -- Only fire when status transitions TO 'approved'
+  IF NEW.status = 'approved' AND (OLD.status IS DISTINCT FROM 'approved') THEN
+    UPDATE public.seller_balances
+    SET
+      available_balance = GREATEST(available_balance - NEW.refund_amount, 0),
+      updated_at        = now()
+    WHERE seller_id = NEW.seller_id;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_deduct_seller_on_refund_approved ON public.refunds_disputes;
+
+CREATE TRIGGER trg_deduct_seller_on_refund_approved
+  AFTER UPDATE OF status ON public.refunds_disputes
+  FOR EACH ROW EXECUTE FUNCTION public.deduct_seller_on_refund_approved();
+
+-- Fix 8: Notification System
+-- Create notifications table
+CREATE TABLE IF NOT EXISTS public.notifications (
+  id          uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id     uuid NOT NULL,
+  type        text NOT NULL,
+  title       text NOT NULL,
+  message     text NOT NULL,
+  link        text,
+  is_read     boolean NOT NULL DEFAULT false,
+  created_at  timestamp with time zone DEFAULT now(),
+  CONSTRAINT notifications_pkey PRIMARY KEY (id),
+  CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
+
+-- Index for fast unread queries
+CREATE INDEX IF NOT EXISTS idx_notifications_user_unread
+  ON public.notifications (user_id, is_read, created_at DESC);
+
+-- RLS
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view own notifications" ON public.notifications;
+DROP POLICY IF EXISTS "Users can update own notifications" ON public.notifications;
+DROP POLICY IF EXISTS "Service can insert notifications" ON public.notifications;
+
+-- Users can only see their own notifications
+CREATE POLICY "Users can view own notifications"
+  ON public.notifications FOR SELECT
+  USING (user_id = auth.uid());
+
+-- Users can mark their own notifications as read
+CREATE POLICY "Users can update own notifications"
+  ON public.notifications FOR UPDATE
+  USING (user_id = auth.uid());
+
+-- Service role (triggers/functions) can insert notifications for anyone
+CREATE POLICY "Service can insert notifications"
+  ON public.notifications FOR INSERT
+  WITH CHECK (true);
+
+-- Helper function to insert notifications
+CREATE OR REPLACE FUNCTION public.create_notification(
+  p_user_id uuid,
+  p_type    text,
+  p_title   text,
+  p_message text,
+  p_link    text DEFAULT NULL
+)
+RETURNS void AS $$
+BEGIN
+  INSERT INTO public.notifications (user_id, type, title, message, link)
+  VALUES (p_user_id, p_type, p_title, p_message, p_link);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION public.create_notification(uuid, text, text, text, text) TO authenticated;
+
+-- Trigger: notify seller when a new order contains their product
+CREATE OR REPLACE FUNCTION public.notify_seller_new_order()
+RETURNS trigger AS $$
+DECLARE
+  v_seller_id uuid;
+BEGIN
+  -- Notify each unique seller in this order
+  FOR v_seller_id IN
+    SELECT DISTINCT seller_id FROM public.order_items WHERE order_id = NEW.id
+  LOOP
+    PERFORM public.create_notification(
+      v_seller_id,
+      'NEW_ORDER',
+      'New Order Received',
+      'You have a new order #' || NEW.id || ' worth ₱' || NEW.total_amount::text,
+      '/seller/orders'
+    );
+  END LOOP;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_notify_seller_new_order ON public.orders;
+CREATE TRIGGER trg_notify_seller_new_order
+  AFTER INSERT ON public.orders
+  FOR EACH ROW EXECUTE FUNCTION public.notify_seller_new_order();
+
+-- Trigger: notify customer when order status changes
+CREATE OR REPLACE FUNCTION public.notify_customer_order_status()
+RETURNS trigger AS $$
+DECLARE
+  v_title   text;
+  v_message text;
+BEGIN
+  IF NEW.status = OLD.status THEN RETURN NEW; END IF;
+
+  CASE NEW.status
+    WHEN 'packed' THEN
+      v_title   := 'Order Packed';
+      v_message := 'Your order #' || NEW.id || ' has been packed and is being prepared for delivery.';
+    WHEN 'to_receive' THEN
+      v_title   := 'Order On The Way';
+      v_message := 'Your order #' || NEW.id || ' is out for delivery!';
+    WHEN 'received' THEN
+      v_title   := 'Order Delivered';
+      v_message := 'Your order #' || NEW.id || ' has been marked as delivered. Enjoy!';
+    WHEN 'cancelled' THEN
+      v_title   := 'Order Cancelled';
+      v_message := 'Your order #' || NEW.id || ' has been cancelled.';
+    ELSE
+      RETURN NEW;
+  END CASE;
+
+  PERFORM public.create_notification(
+    NEW.customer_id,
+    'ORDER_STATUS',
+    v_title,
+    v_message,
+    '/orders'
+  );
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_notify_customer_order_status ON public.orders;
+CREATE TRIGGER trg_notify_customer_order_status
+  AFTER UPDATE OF status ON public.orders
+  FOR EACH ROW EXECUTE FUNCTION public.notify_customer_order_status();
+
+-- Trigger: notify customer when their refund/dispute is actioned
+CREATE OR REPLACE FUNCTION public.notify_customer_refund_update()
+RETURNS trigger AS $$
+DECLARE
+  v_title   text;
+  v_message text;
+BEGIN
+  IF NEW.status = OLD.status THEN RETURN NEW; END IF;
+
+  CASE NEW.status
+    WHEN 'approved' THEN
+      v_title   := 'Refund Approved';
+      v_message := 'Your refund request for order #' || NEW.order_id || ' has been approved.';
+    WHEN 'rejected' THEN
+      v_title   := 'Refund Rejected';
+      v_message := 'Your refund request for order #' || NEW.order_id || ' was rejected.' ||
+                   CASE WHEN NEW.admin_notes IS NOT NULL THEN ' Reason: ' || NEW.admin_notes ELSE '' END;
+    WHEN 'processed' THEN
+      v_title   := 'Refund Processed';
+      v_message := 'Your refund for order #' || NEW.order_id || ' has been processed and is on the way.';
+    ELSE
+      RETURN NEW;
+  END CASE;
+
+  PERFORM public.create_notification(
+    NEW.customer_id,
+    'REFUND_UPDATE',
+    v_title,
+    v_message,
+    '/orders'
+  );
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_notify_customer_refund_update ON public.refunds_disputes;
+CREATE TRIGGER trg_notify_customer_refund_update
+  AFTER UPDATE OF status ON public.refunds_disputes
+  FOR EACH ROW EXECUTE FUNCTION public.notify_customer_refund_update();
+
+-- Trigger: notify seller when their payout is actioned
+CREATE OR REPLACE FUNCTION public.notify_seller_payout_update()
+RETURNS trigger AS $$
+DECLARE
+  v_title   text;
+  v_message text;
+BEGIN
+  IF NEW.status = OLD.status THEN RETURN NEW; END IF;
+
+  CASE NEW.status
+    WHEN 'processing' THEN
+      v_title   := 'Payout Processing';
+      v_message := 'Your payout of ₱' || NEW.amount::text || ' is being processed.';
+    WHEN 'completed' THEN
+      v_title   := 'Payout Completed';
+      v_message := 'Your payout of ₱' || NEW.amount::text || ' has been sent via ' || COALESCE(NEW.payout_method, 'your chosen method') || '.';
+    WHEN 'failed' THEN
+      v_title   := 'Payout Failed';
+      v_message := 'Your payout of ₱' || NEW.amount::text || ' could not be processed. Please contact support.';
+    ELSE
+      RETURN NEW;
+  END CASE;
+
+  PERFORM public.create_notification(
+    NEW.seller_id,
+    'PAYOUT_UPDATE',
+    v_title,
+    v_message,
+    '/seller/settings'
+  );
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_notify_seller_payout_update ON public.seller_payouts;
+CREATE TRIGGER trg_notify_seller_payout_update
+  AFTER UPDATE OF status ON public.seller_payouts
+  FOR EACH ROW EXECUTE FUNCTION public.notify_seller_payout_update();
+
+-- Trigger: notify admin when a new refund/dispute is submitted
+CREATE OR REPLACE FUNCTION public.notify_admins_new_dispute()
+RETURNS trigger AS $$
+DECLARE
+  v_admin_id uuid;
+BEGIN
+  FOR v_admin_id IN
+    SELECT id FROM public.profiles WHERE role = 'admin'
+  LOOP
+    PERFORM public.create_notification(
+      v_admin_id,
+      'NEW_DISPUTE',
+      'New Refund / Dispute',
+      'A new ' || NEW.dispute_type || ' request has been submitted for order #' || NEW.order_id,
+      '/admin/refunds'
+    );
+  END LOOP;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_notify_admins_new_dispute ON public.refunds_disputes;
+CREATE TRIGGER trg_notify_admins_new_dispute
+  AFTER INSERT ON public.refunds_disputes
+  FOR EACH ROW EXECUTE FUNCTION public.notify_admins_new_dispute();
+
+-- Trigger: notify admin when a new payout is requested
+CREATE OR REPLACE FUNCTION public.notify_admins_new_payout()
+RETURNS trigger AS $$
+DECLARE
+  v_admin_id uuid;
+BEGIN
+  FOR v_admin_id IN
+    SELECT id FROM public.profiles WHERE role = 'admin'
+  LOOP
+    PERFORM public.create_notification(
+      v_admin_id,
+      'NEW_PAYOUT_REQUEST',
+      'New Payout Request',
+      'A seller has requested a payout of ₱' || NEW.amount::text || ' via ' || COALESCE(NEW.payout_method, 'unknown method'),
+      '/admin/payouts'
+    );
+  END LOOP;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_notify_admins_new_payout ON public.seller_payouts;
+CREATE TRIGGER trg_notify_admins_new_payout
+  AFTER INSERT ON public.seller_payouts
+  FOR EACH ROW EXECUTE FUNCTION public.notify_admins_new_payout();
+
+-- Trigger: notify seller when a refund/dispute is filed against them
+CREATE OR REPLACE FUNCTION public.notify_seller_new_dispute()
+RETURNS trigger AS $$
+BEGIN
+  PERFORM public.create_notification(
+    NEW.seller_id,
+    'DISPUTE_FILED',
+    'Dispute Filed Against You',
+    'A customer has filed a ' || NEW.dispute_type || ' request for order #' || NEW.order_id || '. Admin is reviewing it.',
+    '/seller/orders'
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_notify_seller_new_dispute ON public.refunds_disputes;
+CREATE TRIGGER trg_notify_seller_new_dispute
+  AFTER INSERT ON public.refunds_disputes
+  FOR EACH ROW EXECUTE FUNCTION public.notify_seller_new_dispute();

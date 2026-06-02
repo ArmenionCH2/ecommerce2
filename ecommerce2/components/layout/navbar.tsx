@@ -12,6 +12,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { SigninForm } from '@/features/auth/components/SigninForm';
 import { SignupForm } from '@/features/auth/components/SignupForm';
 import { CartDrawer } from '@/features/cart/components/CartDrawer';
+import { NotificationBell } from '@/features/notifications/components/NotificationBell';
 import { BRAND_EMOJI, BRAND_NAME } from '@/lib/branding';
 import { getHomePathForRole, canBrowseMarketplace } from '@/lib/roleRoutes';
 
@@ -102,6 +103,9 @@ export function Navbar() {
 
           {/* Actions Bar */}
           <div className="flex items-center gap-4">
+            {/* Notification Bell (all logged-in users) */}
+            {user && <NotificationBell userId={user.id} />}
+
             {/* Cart Icon (Customers only) */}
             {(!user || isCustomer) && (
               <button
