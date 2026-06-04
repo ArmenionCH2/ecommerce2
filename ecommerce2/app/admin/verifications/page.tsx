@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useUserSession } from '@/features/auth/hooks/useUserSession';
 import { supabaseClient } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Check, X, FileText } from 'lucide-react';
+import { ArrowLeft, Check, X } from 'lucide-react';
 import Link from 'next/link';
 import type { VerificationRequest, Profile } from '@/lib/types';
 
@@ -226,45 +226,61 @@ export default function AdminVerificationsPage() {
                   </div>
                 )}
 
-                {request.business_document_url && (
-                  <div>
-                    <a
-                      href={request.business_document_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 hover:text-emerald-700"
-                    >
-                      <FileText className="w-3.5 h-3.5" />
-                      View Business Document
-                    </a>
-                  </div>
-                )}
+                {(request.business_document_url || request.id_document_url || request.selfie_url) && (
+                  <div className="flex flex-wrap gap-3">
+                    {request.business_document_url && (
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Business Doc</p>
+                        <a
+                          href={request.business_document_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={request.business_document_url}
+                            alt="Business Document"
+                            className="h-28 w-auto rounded-xl border border-gray-200 object-cover cursor-pointer hover:opacity-80 hover:border-emerald-400 transition-all"
+                          />
+                        </a>
+                      </div>
+                    )}
 
-                {request.id_document_url && (
-                  <div>
-                    <a
-                      href={request.id_document_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 hover:text-emerald-700"
-                    >
-                      <FileText className="w-3.5 h-3.5" />
-                      View Government ID
-                    </a>
-                  </div>
-                )}
+                    {request.id_document_url && (
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Government ID</p>
+                        <a
+                          href={request.id_document_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={request.id_document_url}
+                            alt="Government ID"
+                            className="h-28 w-auto rounded-xl border border-gray-200 object-cover cursor-pointer hover:opacity-80 hover:border-emerald-400 transition-all"
+                          />
+                        </a>
+                      </div>
+                    )}
 
-                {request.selfie_url && (
-                  <div>
-                    <a
-                      href={request.selfie_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 hover:text-emerald-700"
-                    >
-                      <FileText className="w-3.5 h-3.5" />
-                      View Selfie with ID
-                    </a>
+                    {request.selfie_url && (
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Selfie with ID</p>
+                        <a
+                          href={request.selfie_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={request.selfie_url}
+                            alt="Selfie with ID"
+                            className="h-28 w-auto rounded-xl border border-gray-200 object-cover cursor-pointer hover:opacity-80 hover:border-emerald-400 transition-all"
+                          />
+                        </a>
+                      </div>
+                    )}
                   </div>
                 )}
 
