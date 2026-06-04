@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ShoppingCart, Eye, AlertCircle, CheckCircle } from 'lucide-react';
 import type { Product } from '@/lib/types';
 import { formatPrice } from '@/lib/utils';
+import { SellerVerification } from '@/lib/SellerVerification';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useCartActions } from '@/features/cart/hooks/useCartActions';
@@ -98,7 +99,7 @@ export function ProductCard({ product }: ProductCardProps) {
             {product.profiles?.full_name && (
               <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
                 <span className="font-semibold">by</span> {product.profiles.full_name}
-                {(product.profiles as any).is_verified && (
+                {new SellerVerification(product.profiles as any).isVerified() && (
                   <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
                 )}
               </p>

@@ -13,7 +13,7 @@
  */
 
 import { createServerClient }                           from '@/lib/supabaseServer';
-import { calculateOrderTotal }                          from './utils/calculations';
+import { OrderCalculator }                              from '@/lib/OrderCalculator';
 import type { OrderPlacementPayload, OrderPlacementResult } from '@/lib/types';
 
 export async function executeOrderPlacement(
@@ -23,7 +23,8 @@ export async function executeOrderPlacement(
 
   try {
     // Step 1: Calculate totals using DB prices (never client prices)
-    const { lines, grandTotal } = await calculateOrderTotal(payload);
+    const calculator = new OrderCalculator();
+    const { lines, grandTotal } = await calculator.calculateOrder(payload);
 
     // Step 2: Write master order record
     const { data: orderRow, error: orderError } = await supabase

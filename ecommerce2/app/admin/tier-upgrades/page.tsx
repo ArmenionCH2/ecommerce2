@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, Check, X, FileText, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import type { VerificationRequest, Profile } from '@/lib/types';
+import { SellerTierManager } from '@/lib/SellerTierManager';
 import { TIER_LABELS } from '@/lib/constants';
 
 export default function AdminTierUpgradesPage() {
@@ -186,7 +187,9 @@ export default function AdminTierUpgradesPage() {
                   <div className="flex-1">
                     <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Current Tier</p>
                     <p className="text-lg font-semibold text-gray-900">
-                      {request.seller?.seller_tier ? TIER_LABELS[request.seller.seller_tier] : 'Not set'}
+                      {request.seller?.seller_tier
+                        ? new SellerTierManager(request.seller.seller_tier).getLabel()
+                        : 'Not set'}
                     </p>
                   </div>
                   <TrendingUp className="w-6 h-6 text-emerald-600" />
