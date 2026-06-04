@@ -42,14 +42,31 @@ export function CheckoutSummaryCard({
           const price = Number(item.product.price) + (item.variation ? Number(item.variation.price_modifier) : 0);
 
           return (
-            <div key={item.id} className="flex justify-between py-3.5 text-sm animate-in fade-in-50 duration-200">
-              <div className="min-w-0 pr-4">
+            <div key={item.id} className="flex items-center gap-3 py-3.5 text-sm animate-in fade-in-50 duration-200">
+              {/* Product thumbnail */}
+              <div className="w-12 h-12 flex-shrink-0 rounded-xl overflow-hidden border border-gray-100 bg-emerald-50/30 flex items-center justify-center">
+                {item.product.image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={item.product.image_url}
+                    alt={item.product.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-xl">📦</span>
+                )}
+              </div>
+
+              {/* Product info */}
+              <div className="flex-1 min-w-0">
                 <p className="font-bold text-gray-800 truncate">{item.product.title}</p>
                 <p className="text-xs text-gray-400 mt-0.5">
                   {item.quantity} x {formatPrice(price)}
                   {item.variation && ` (${item.variation.value})`}
                 </p>
               </div>
+
+              {/* Line total */}
               <span className="font-extrabold text-gray-800 flex-shrink-0">
                 {formatPrice(price * item.quantity)}
               </span>
