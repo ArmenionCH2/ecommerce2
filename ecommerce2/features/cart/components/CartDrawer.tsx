@@ -20,16 +20,42 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   const { user } = useUserSession();
   const customerId = user && user.role === 'customer' ? user.id : null;
   const { cartItems, isLoading, updateQty, removeItem } = useCartActions(customerId);
+  const [selectedIds, setSelectedIds] = React.useState<Set<number>>(new Set());
+
+  React.useEffect(() => {
+    setSelectedIds(prev => {
+      const updated = new Set(prev);
+      cartItems.forEach(item => updated.add(item.id));
+      return updated;
+    });
+  }, [cartItems]);
 
   // Subtotal calculation
-  const subtotal = cartItems.reduce((sum, item) => {
-    if (!item.product) return sum;
-    const basePrice = Number(item.product.price);
-    const modifier = item.variation ? Number(item.variation.price_modifier) : 0;
-    return sum + (basePrice + modifier) * item.quantity;
-  }, 0);
+  const subtotal = cartItems
+    .filter(item => selectedIds.has(item.id))
+    .reduce((sum, item) => {
+      if (!item.product) return sum;
+      const basePrice = Number(item.product.price);
+      const modifier = item.variation ? Number(item.variation.price_modifier) : 0;
+      return sum + (basePrice + modifier) * item.quantity;
+    }, 0);
 
   const grandTotal = subtotal > 0 ? subtotal + SHIPPING_FEE : 0;
+
+  const toggleItem = (id: number) => {
+    setSelectedIds(prev => {
+      const updated = new Set(prev);
+      if (updated.has(id)) {
+        updated.delete(id);
+      } else {
+        updated.add(id);
+      }
+      return updated;
+    });
+  };
+
+  const selectedCount = cartItems.filter(i => selectedIds.has(i.id)).length;
+  const checkoutHref = `/checkout?items=${[...selectedIds].join(',')}`;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -89,6 +115,8 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                     item={item}
                     onUpdateQty={(newQty) => updateQty(item.id, newQty)}
                     onRemove={() => removeItem(item.id)}
+                    isSelected={selectedIds.has(item.id)}
+                    onToggle={() => toggleItem(item.id)}
                   />
                 ))}
               </div>
@@ -113,9 +141,13 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                 </div>
               </div>
 
-              <Button asChild className="w-full h-11 text-sm font-bold shadow-md shadow-emerald-100 hover:shadow-lg">
-                <Link href="/checkout" onClick={onClose}>
-                  Proceed to checkout
+              <Button
+                asChild
+                disabled={selectedCount === 0}
+                className="w-full h-11 text-sm font-bold shadow-md shadow-emerald-100 hover:shadow-lg"
+              >
+                <Link href={checkoutHref} onClick={onClose}>
+                  Checkout {selectedCount > 0 ? `(${selectedCount})` : ''}
                 </Link>
               </Button>
             </div>

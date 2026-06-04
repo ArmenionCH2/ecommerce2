@@ -10,9 +10,11 @@ interface CartItemRowProps {
   item: CartItem;
   onUpdateQty: (newQty: number) => Promise<void>;
   onRemove: () => Promise<void>;
+  isSelected: boolean;
+  onToggle: () => void;
 }
 
-export function CartItemRow({ item, onUpdateQty, onRemove }: CartItemRowProps) {
+export function CartItemRow({ item, onUpdateQty, onRemove, isSelected, onToggle }: CartItemRowProps) {
   const { product, variation } = item;
 
   if (!product) return null;
@@ -26,6 +28,14 @@ export function CartItemRow({ item, onUpdateQty, onRemove }: CartItemRowProps) {
 
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 py-4 border-b border-gray-100 last:border-0 animate-in fade-in-50 duration-200">
+      {/* Selection Checkbox */}
+      <input
+        type="checkbox"
+        checked={isSelected}
+        onChange={onToggle}
+        className="mt-1 w-4 h-4 accent-emerald-600 cursor-pointer flex-shrink-0"
+      />
+
       {/* Thumbnail */}
       <div className="w-14 h-14 sm:w-16 sm:h-16 bg-emerald-50/20 rounded-xl overflow-hidden flex-shrink-0 border border-gray-50 flex items-center justify-center">
         {product.image_url ? (

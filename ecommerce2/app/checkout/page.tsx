@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useUserSession } from '@/features/auth/hooks/useUserSession';
 import { useCartActions } from '@/features/cart/hooks/useCartActions';
 import { DeliveryAddressForm, AddressFormData } from '@/features/checkout/components/DeliveryAddressForm';
@@ -17,6 +18,15 @@ export default function CheckoutTerminal() {
   const { user, isLoading: isSessionLoading } = useUserSession();
   const customerId = user && user.role === 'customer' ? user.id : null;
   const { cartItems, isLoading: isCartLoading, clearCart } = useCartActions(customerId);
+  const searchParams = useSearchParams();
+  const selectedParam = searchParams.get('items');
+  const selectedIds = React.useMemo(() => {
+    if (!selectedParam) return null;
+    return new Set(selectedParam.split(',').map(Number).filter(Boolean));
+  }, [selectedParam]);
+  const checkoutItems = selectedIds
+    ? cartItems.filter(item => selectedIds.has(item.id))
+    : cartItems;
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [addressData, setAddressData] = useState<AddressFormData | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -42,7 +52,7 @@ export default function CheckoutTerminal() {
   };
 
   const handlePlaceOrder = async () => {
-    if (!user || !addressData || cartItems.length === 0) return;
+    if (!user || !addressData || checkoutItems.length === 0) return;
 
     setIsPlacingOrder(true);
     setErrorMsg(null);
@@ -52,7 +62,7 @@ export default function CheckoutTerminal() {
       shippingAddress: `${addressData.fullName} | Tel: ${addressData.phoneNumber} | Addr: ${addressData.address}${
         addressData.instructions ? ` (Notes: ${addressData.instructions})` : ''
       }`,
-      items: cartItems.map((item) => ({
+      items: checkoutItems.map((item) => ({
         product_id: item.product_id,
         seller_id: item.product?.seller_id || '',
         quantity: item.quantity,
@@ -102,7 +112,7 @@ export default function CheckoutTerminal() {
     );
   }
 
-  if (cartItems.length === 0) {
+  if (checkoutItems.length === 0) {
     return (
       <div className="text-center py-20 bg-white rounded-3xl border border-gray-100 max-w-md mx-auto my-10 space-y-4">
         <span className="text-5xl">🛒</span>
@@ -151,7 +161,7 @@ export default function CheckoutTerminal() {
         {/* Right Summary */}
         <div className="lg:col-span-5">
           <CheckoutSummaryCard
-            items={cartItems}
+            items={checkoutItems}
             isLoading={isPlacingOrder}
             onPlaceOrder={addressData ? handlePlaceOrder : undefined}
             disabled={!addressData}
