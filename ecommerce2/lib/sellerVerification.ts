@@ -2,26 +2,45 @@ import type { Profile } from '@/lib/types';
 
 export type VerificationStatus = 'pending' | 'approved' | 'rejected' | 'none';
 
-export function getSellerVerification(profile: Profile | null | undefined) {
-  if (!profile || profile.role !== 'seller') {
-    return { status: 'none' as VerificationStatus, isVerified: false };
+/**
+ * Encapsulates seller verification state derived from a Profile.
+ * Replaces the standalone getSellerVerification() function.
+ */
+export class SellerVerification {
+  private profile: Profile | null;
+
+  constructor(profile: Profile | null | undefined) {
+    this.profile = profile ?? null;
   }
 
-  const metadata = profile.metadata as {
-    is_verified?: boolean;
-    verification_status?: string;
-  };
-
-  const isVerified = metadata?.is_verified === true;
-  let status: VerificationStatus = 'pending';
-
-  if (metadata?.verification_status === 'approved' || isVerified) {
-    status = 'approved';
-  } else if (metadata?.verification_status === 'rejected') {
-    status = 'rejected';
-  } else if (!isVerified) {
-    status = 'pending';
+  isSeller(): boolean {
+    return this.profile?.role === 'seller';
   }
 
-  return { status, isVerified: status === 'approved' };
+  getStatus(): VerificationStatus {
+    if (!this.profile || this.profile.role !== 'seller') return 'none';
+
+    const metadata = this.profile.metadata as {
+      is_verified?: boolean;
+      verification_status?: string;
+    };
+
+    if (metadata?.verification_status === 'approved' || metadata?.is_verified === true) {
+      return 'approved';
+    }
+    if (metadata?.verification_status === 'rejected') return 'rejected';
+    return 'pending';
+  }
+
+  isVerified(): boolean {
+    return this.getStatus() === 'approved';
+  }
+
+  isPending(): boolean {
+    return this.getStatus() === 'pending';
+  }
+
+  isRejected(): boolean {
+    return this.getStatus() === 'rejected';
+  }
 }
