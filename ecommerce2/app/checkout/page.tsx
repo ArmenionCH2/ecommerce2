@@ -13,7 +13,7 @@ import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
-export default function CheckoutTerminal() {
+function CheckoutTerminal() {
   const router = useRouter();
   const { user, isLoading: isSessionLoading } = useUserSession();
   const customerId = user && user.role === 'customer' ? user.id : null;
@@ -169,5 +169,13 @@ export default function CheckoutTerminal() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CheckoutPage() {
+  return (
+    <React.Suspense fallback={null}>
+      <CheckoutTerminal />
+    </React.Suspense>
   );
 }
